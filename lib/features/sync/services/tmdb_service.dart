@@ -31,6 +31,15 @@ class TMDBService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       
+      developer.log(
+        'Raw genres data from TMDB',
+        name: 'TMDBService',
+        error: {
+          'tmdbId': tmdbId,
+          'rawGenres': data['genres'],
+        },
+      );
+
       String title = data['title'] ?? '';
       String originalTitle = data['original_title'] ?? '';
       
@@ -57,6 +66,21 @@ class TMDBService {
         throw Exception('No valid title found for movie $tmdbId');
       }
 
+      final genres = (data['genres'] as List?)?.map((genre) => {
+        'id': genre['id'],
+        'name': genre['name'],
+      }).toList() ?? [];
+
+      developer.log(
+        'Processed genres data',
+        name: 'TMDBService',
+        error: {
+          'tmdbId': tmdbId,
+          'genresCount': genres.length,
+          'genres': genres,
+        },
+      );
+
       final movieData = {
         'tmdb_id': tmdbId,
         'imdb_id': data['imdb_id'],
@@ -67,6 +91,7 @@ class TMDBService {
         'revenue': data['revenue'],
         'runtime': data['runtime'],
         'vote_average': data['vote_average'],
+        'genres': genres,
         'cast': (data['credits']['cast'] as List?)
             ?.take(7)
             .map((actor) => {
@@ -75,6 +100,17 @@ class TMDBService {
                 })
             .toList() ?? [],
       };
+
+      developer.log(
+        'Final movie data with genres',
+        name: 'TMDBService',
+        error: {
+          'tmdbId': tmdbId,
+          'title': title,
+          'genresCount': movieData['genres'].length,
+          'genres': movieData['genres'],
+        },
+      );
 
       developer.log(
         'Processed movie data',

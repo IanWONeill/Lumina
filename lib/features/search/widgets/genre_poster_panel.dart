@@ -1,28 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:developer' as developer;
-import '../providers/movies_provider.dart';
-import '../../../widgets/digital_clock.dart';
+import '../providers/genre_results_provider.dart';
+import 'dart:io';
 
-class MoviePosterPanel extends HookConsumerWidget {
-  const MoviePosterPanel({super.key});
+class GenrePosterPanel extends HookConsumerWidget {
+  const GenrePosterPanel({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedMovie = ref.watch(selectedMovieProvider);
-    final movies = ref.watch(moviesProvider);
+    final selectedMovie = ref.watch(selectedGenreMovieProvider);
+    final movies = ref.watch(searchResultsProvider);
+    final genreName = ModalRoute.of(context)?.settings.arguments as String? ?? 
+                     'Genre';
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: movies.when(
-            loading: () => const Text('Loading...'),
-            error: (err, stack) => const Text('Error loading movies'),
-            data: (moviesList) => Text(
-              '${moviesList.length} Movies',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+          child: Text(
+            '${movies.length} $genreName Results',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
         ),
         Expanded(
@@ -33,12 +31,12 @@ class MoviePosterPanel extends HookConsumerWidget {
                   return const Text('No movie selected');
                 }
 
-                final posterFile = selectedMovie.posterFile;
+                final posterFile = File('/storage/emulated/0/Debrid_Player/metadata/movies/posters/${selectedMovie['tmdb_id']}/poster.webp');
 
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (posterFile != null && posterFile.existsSync())
+                    if (posterFile.existsSync())
                       Image.file(
                         posterFile,
                         height: 450,
@@ -47,7 +45,7 @@ class MoviePosterPanel extends HookConsumerWidget {
                         errorBuilder: (context, error, stackTrace) {
                           developer.log(
                             'Error loading image: $error',
-                            name: 'MoviePosterPanel',
+                            name: 'GenrePosterPanel',
                             error: error,
                             stackTrace: stackTrace,
                           );
@@ -68,12 +66,10 @@ class MoviePosterPanel extends HookConsumerWidget {
                           child: Icon(Icons.movie, size: 100),
                         ),
                       ),
-                    if (selectedMovie.watchProgress > 0)
+                    if (selectedMovie['watch_progress'] != null)
                       LinearProgressIndicator(
-                        value: selectedMovie.watchProgress / 100,
+                        value: selectedMovie['watch_progress'] / 100,
                       ),
-                    const SizedBox(height: 16),
-                    const DigitalClock(),
                   ],
                 );
               },

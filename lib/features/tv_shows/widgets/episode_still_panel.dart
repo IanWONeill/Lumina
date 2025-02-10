@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:developer' as developer;
 import '../providers/episodes_provider.dart';
 import '../providers/tv_shows_provider.dart';
+import '../../../widgets/digital_clock.dart';
 
 class EpisodeStillPanel extends HookConsumerWidget {
   const EpisodeStillPanel({super.key});
@@ -64,6 +65,8 @@ class EpisodeStillPanel extends HookConsumerWidget {
           LinearProgressIndicator(
             value: selectedEpisode.watchProgress / 100,
           ),
+        const SizedBox(height: 16),
+        const DigitalClock(),
       ],
     );
   }

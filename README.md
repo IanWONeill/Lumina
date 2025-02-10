@@ -7,7 +7,7 @@
 A Flutter-based media streaming application that fetches streams from Premiumize using Orionoid and plays them. The UI is modeled after Kodi skins' list views, with potential for additional view options like poster view.
 
 
-##✨ What Makes Lumina Different?
+## ✨ What Makes Lumina Different?
 
 Unlike other streaming apps such as Stremio or Syncler, Lumina is designed with a focus on simplicity, and full local control over your media library. Here's how Lumina stands out:
 
@@ -104,6 +104,8 @@ flutter pub run build_runner build --delete-conflicting-outputs
     Use the "Sync" button to fetch new content from your Simkl watchlist.
 
     So the process for adding movies or shows will be you use simkl and find any movies or shows you want and add them to your plan to watch list. then in Lumina you use the sync button to have it find any new movies or tvshows you added.
+
+    You must link your premiumize account and orionoid account in the user panel on orionoids website.
 
 ### 🤝 Contributing
 

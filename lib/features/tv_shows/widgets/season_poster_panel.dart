@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:developer' as developer;
 import '../models/tv_show.dart';
 import '../providers/seasons_provider.dart';
+import '../../../widgets/digital_clock.dart';
 
 class SeasonPosterPanel extends HookConsumerWidget {
   final TVShow show;
@@ -60,6 +61,8 @@ class SeasonPosterPanel extends HookConsumerWidget {
               child: Icon(Icons.tv, size: 100),
             ),
           ),
+        const SizedBox(height: 16),
+        const DigitalClock(),
       ],
     );
   }

@@ -9,6 +9,8 @@ import '../../tv_shows/screens/seasons_screen.dart';
 import '../../movies/providers/movie_details_provider.dart';
 import '../../tv_shows/providers/tv_show_details_provider.dart';
 import 'dart:developer' as developer;
+import '../../sync/services/database_service.dart';
+import '../../search/screens/genre_results_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -19,16 +21,52 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _searchController = TextEditingController();
+  final _keyboardFocusNode = FocusNode();
+  final _genreFocusNode = FocusNode();
+  final _textFieldFocusNode = FocusNode();
+  final _speechFocusNode = FocusNode();
   final SpeechToText _speechToText = SpeechToText();
   bool _showKeyboard = false;
+  bool _isKeyboardFocused = false;
+  bool _isTextFieldFocused = false;
+  bool _isGenreFocused = false;
+  bool _isSpeechFocused = false;
+  final Map<String, int> _genreIds = {
+    'Action': 28,
+    'Animation': 16,
+    'Comedy': 35,
+    'Documentary': 99,
+    'Fantasy': 14,
+    'Horror': 27,
+    'Romance': 10749,
+    'Thriller': 53,
+    'War': 10752,
+    'Western': 37,
+  };
 
   @override
   void initState() {
     super.initState();
     _initSpeech();
+    _setupFocusListeners();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(searchResultsProvider.notifier).clearResults();
       ref.read(searchQueryProvider.notifier).state = '';
+    });
+  }
+
+  void _setupFocusListeners() {
+    _keyboardFocusNode.addListener(() {
+      setState(() => _isKeyboardFocused = _keyboardFocusNode.hasFocus);
+    });
+    _genreFocusNode.addListener(() {
+      setState(() => _isGenreFocused = _genreFocusNode.hasFocus);
+    });
+    _textFieldFocusNode.addListener(() {
+      setState(() => _isTextFieldFocused = _textFieldFocusNode.hasFocus);
+    });
+    _speechFocusNode.addListener(() {
+      setState(() => _isSpeechFocused = _speechFocusNode.hasFocus);
     });
   }
 
@@ -72,9 +110,116 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
+  void _showGenreSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        contentPadding: const EdgeInsets.all(5),
+        insetPadding: const EdgeInsets.all(5),
+        content: Container(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          child: LayoutBuilder(
+            builder: (context, constraints) => GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 5,
+              crossAxisSpacing: 5,
+              childAspectRatio: (constraints.maxWidth / 2 - 5) / 
+                              (constraints.maxHeight / 5 - 5),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildGenreButton('Action', Icons.local_fire_department),
+                _buildGenreButton('Animation', Icons.movie_creation),
+                _buildGenreButton('Comedy', Icons.sentiment_very_satisfied),
+                _buildGenreButton('Documentary', Icons.camera_roll),
+                _buildGenreButton('Fantasy', Icons.auto_fix_high),
+                _buildGenreButton('Horror', Icons.warning_amber),
+                _buildGenreButton('Romance', Icons.favorite),
+                _buildGenreButton('Thriller', Icons.nightlife),
+                _buildGenreButton('War', Icons.gavel),
+                _buildGenreButton('Western', Icons.landscape),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenreButton(String genre, IconData icon) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fontSize = constraints.maxWidth * 0.1;
+        final iconSize = constraints.maxHeight * 0.4;
+        
+        return ElevatedButton.icon(
+          onPressed: () async {
+            Navigator.pop(context);
+            
+            final genreId = _genreIds[genre];
+            if (genreId != null) {
+              if (context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GenreResultsScreen(
+                      genreName: genre,
+                    ),
+                    settings: RouteSettings(arguments: genre),
+                  ),
+                );
+              }
+
+              ref.read(isGenreSearchProvider.notifier).state = true;
+              ref.read(isSearchLoadingProvider.notifier).state = true;
+              
+              await ref.read(searchResultsProvider.notifier)
+                       .searchByGenre(genreId);
+              
+              ref.read(searchQueryProvider.notifier).state = genre;
+              ref.read(isSearchLoadingProvider.notifier).state = false;
+              ref.read(isGenreSearchProvider.notifier).state = false;
+            }
+          },
+          icon: Icon(
+            icon,
+            size: iconSize,
+            color: Colors.greenAccent[400],
+          ),
+          label: Text(
+            genre,
+            style: TextStyle(
+              fontSize: fontSize,
+            ),
+          ),
+          style: ButtonStyle(
+            backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+              if (states.contains(MaterialState.focused)) {
+                return Colors.blue;
+              }
+              return Colors.white10;
+            }),
+            foregroundColor: MaterialStateProperty.all(Colors.white),
+            padding: MaterialStateProperty.all(
+              EdgeInsets.symmetric(
+                horizontal: constraints.maxWidth * 0.05,
+                vertical: constraints.maxHeight * 0.1,
+              ),
+            ),
+          ),
+        );
+      }
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _keyboardFocusNode.dispose();
+    _genreFocusNode.dispose();
+    _textFieldFocusNode.dispose();
+    _speechFocusNode.dispose();
     super.dispose();
   }
 
@@ -94,6 +239,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ElevatedButton.icon(
+                      focusNode: _keyboardFocusNode,
                       autofocus: true,
                       onPressed: () {
                         setState(() {
@@ -130,6 +276,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                     const SizedBox(width: 24),
                     ElevatedButton.icon(
+                      focusNode: _speechFocusNode,
                       onPressed: _handleVoiceInput,
                       icon: Icon(
                         Icons.mic,
@@ -158,12 +305,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 24),
+                    ElevatedButton.icon(
+                      focusNode: _genreFocusNode,
+                      onPressed: _showGenreSelector,
+                      icon: Icon(
+                        Icons.category,
+                        size: 32,
+                        color: Colors.greenAccent[400],
+                      ),
+                      label: const Text(
+                        'Genre Search',
+                        style: TextStyle(
+                          fontSize: 18,
+                        ),
+                      ),
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                          if (states.contains(MaterialState.focused)) {
+                            return Colors.blue;
+                          }
+                          return Colors.white10;
+                        }),
+                        foregroundColor: MaterialStateProperty.all(Colors.white),
+                        padding: MaterialStateProperty.all(
+                          const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
                 
                 if (_showKeyboard) ...[
                   TextField(
+                    focusNode: _textFieldFocusNode,
                     controller: _searchController,
                     autofocus: true,
                     decoration: const InputDecoration(
@@ -196,10 +375,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     if (query.isEmpty && results.isEmpty) {
-      return const Center(
+      String hintText = '';
+      if (_isGenreFocused) {
+        hintText = 'Search for a Movie Genre';
+      } else if (_isKeyboardFocused || _isTextFieldFocused || _showKeyboard) {
+        hintText = 'Search for a Movie, TV Show, or Actor name by typing it in';
+      } else if (_isSpeechFocused) {
+        hintText = 'Search for a Movie, TV Show, or Actor name by talking into your remote';
+      }
+
+      return Center(
         child: Text(
-          'Search for a Movie, TV Show, or Actor name',
-          style: TextStyle(fontSize: 25),
+          hintText,
+          style: const TextStyle(fontSize: 25),
+          textAlign: TextAlign.center,
         ),
       );
     }
@@ -386,16 +575,25 @@ class _VoiceInputDialogState extends State<_VoiceInputDialog> {
   final SpeechToText _speechToText = SpeechToText();
   String _lastWords = '';
   Timer? _silenceTimer;
+  Timer? _initialTimer;
+  bool _hasStartedTalking = false;
 
   @override
   void initState() {
     super.initState();
     _startListening();
+    _initialTimer = Timer(const Duration(seconds: 8), () {
+      if (!_hasStartedTalking) {
+        _speechToText.stop();
+        Navigator.of(context).pop();
+      }
+    });
   }
 
   @override
   void dispose() {
     _silenceTimer?.cancel();
+    _initialTimer?.cancel();
     _speechToText.stop();
     super.dispose();
   }
@@ -404,7 +602,7 @@ class _VoiceInputDialogState extends State<_VoiceInputDialog> {
     await _speechToText.listen(
       onResult: _onSpeechResult,
       listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 2),
+      pauseFor: const Duration(seconds: 10),
       partialResults: true,
       cancelOnError: true,
       listenMode: ListenMode.confirmation,
@@ -417,13 +615,20 @@ class _VoiceInputDialogState extends State<_VoiceInputDialog> {
       _lastWords = result.recognizedWords;
     });
 
+    if (!_hasStartedTalking && result.recognizedWords.isNotEmpty) {
+      _hasStartedTalking = true;
+      _initialTimer?.cancel();
+    }
+
     _silenceTimer?.cancel();
-    _silenceTimer = Timer(const Duration(seconds: 2), () {
-      if (_lastWords.isNotEmpty) {
-        Navigator.of(context).pop();
-        widget.onResult(_lastWords);
-      }
-    });
+    if (_hasStartedTalking) {
+      _silenceTimer = Timer(const Duration(seconds: 2), () {
+        if (_lastWords.isNotEmpty) {
+          Navigator.of(context).pop();
+          widget.onResult(_lastWords);
+        }
+      });
+    }
   }
 
   @override

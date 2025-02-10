@@ -79,7 +79,9 @@ class MovieListPanel extends HookConsumerWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                movie.originalTitle,
+                                movie.releaseDate.isNotEmpty 
+                                    ? '${movie.originalTitle} (${movie.releaseDate.substring(0, 4)})'
+                                    : movie.originalTitle,
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: focused ? Colors.blue : null,
@@ -140,7 +142,7 @@ class _AlphabetSelector extends HookConsumerWidget {
             itemBuilder: (context, index) {
               final letter = _letters[index];
               return Focus(
-                autofocus: index == 0,
+                autofocus: false,
                 onFocusChange: (hasFocus) {
                   if (hasFocus) {
                     focusedIndexState.value = index;

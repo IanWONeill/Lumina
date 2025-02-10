@@ -8,13 +8,27 @@ import 'features/settings/screens/settings_screen.dart';
 import 'features/sync/providers/sync_provider.dart';
 import 'features/player/providers/just_player_broadcast_provider.dart';
 import 'features/search/screens/search_screen.dart';
+import 'features/sync/providers/sync_schedule_provider.dart';
+import 'features/sync/widgets/sync_status_overlay.dart';
+import 'widgets/digital_clock.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   runApp(
-    const ProviderScope(
-      child: MyApp(),
+    ProviderScope(
+      child: InitApp(),
     ),
   );
+}
+
+class InitApp extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(syncScheduleProvider);
+    
+    return const MyApp();
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -52,6 +66,13 @@ class MyApp extends StatelessWidget {
           ),
         ),
         home: const HomeScreen(),
+        builder: (context, child) => Stack(
+          children: [
+            if (child != null) child,
+            const SyncStatusOverlay(),
+          ],
+        ),
+        navigatorKey: navigatorKey,
       );
 }
 
@@ -198,6 +219,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             bottom: 20,
             right: 20,
             child: _buildSettingsButton(),
+          ),
+          const Positioned(
+            bottom: 20,
+            left: 20,
+            child: DigitalClock(),
           ),
         ],
       ),

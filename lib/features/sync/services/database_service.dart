@@ -105,6 +105,24 @@ class DatabaseService {
           )
         ''');
 
+        await db.execute('''
+          CREATE TABLE genres (
+            genre_id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE movie_genres (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            movie_id INTEGER,
+            genre_id INTEGER,
+            FOREIGN KEY (movie_id) REFERENCES movies (tmdb_id),
+            FOREIGN KEY (genre_id) REFERENCES genres (genre_id),
+            UNIQUE(movie_id, genre_id)
+          )
+        ''');
+
         developer.log(
           'Database created',
           name: 'DatabaseService',
@@ -178,6 +196,17 @@ class DatabaseService {
     
     await db.transaction((txn) async {
       try {
+        developer.log(
+          'Inserting movie with genres',
+          name: 'DatabaseService',
+          error: {
+            'movieId': movie['tmdb_id'],
+            'movieTitle': movie['original_title'],
+            'genresCount': movie['genres']?.length ?? 0,
+            'genres': movie['genres'],
+          },
+        );
+
         await txn.insert(
           'movies',
           {
@@ -193,6 +222,44 @@ class DatabaseService {
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+
+        await txn.delete(
+          'movie_genres',
+          where: 'movie_id = ?',
+          whereArgs: [movie['tmdb_id']],
+        );
+
+        if (movie['genres'] != null) {
+          for (final genre in movie['genres']) {
+            developer.log(
+              'Inserting genre',
+              name: 'DatabaseService',
+              error: {
+                'movieId': movie['tmdb_id'],
+                'genreId': genre['id'],
+                'genreName': genre['name'],
+              },
+            );
+
+            await txn.insert(
+              'genres',
+              {
+                'genre_id': genre['id'],
+                'name': genre['name'],
+              },
+              conflictAlgorithm: ConflictAlgorithm.ignore,
+            );
+            
+            await txn.insert(
+              'movie_genres',
+              {
+                'movie_id': movie['tmdb_id'],
+                'genre_id': genre['id'],
+              },
+              conflictAlgorithm: ConflictAlgorithm.ignore,
+            );
+          }
+        }
 
         for (final actor in movie['cast']) {
           await txn.insert(
@@ -982,5 +1049,31 @@ class DatabaseService {
       episodeMap[seasonId]!.add(episodeNumber);
     }
     return episodeMap;
+  }
+
+  Future<List<Map<String, dynamic>>> getMovieGenres(int movieId) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT g.* FROM genres g
+      INNER JOIN movie_genres mg ON mg.genre_id = g.genre_id
+      WHERE mg.movie_id = ?
+    ''', [movieId]);
+    return result;
+  }
+
+  Future<List<Map<String, dynamic>>> getAllGenres() async {
+    final db = await database;
+    return await db.query('genres', orderBy: 'name ASC');
+  }
+
+  Future<List<Map<String, dynamic>>> getMoviesByGenre(int genreId) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT m.* FROM movies m
+      INNER JOIN movie_genres mg ON mg.movie_id = m.tmdb_id
+      WHERE mg.genre_id = ?
+      ORDER BY m.original_title ASC
+    ''', [genreId]);
+    return result;
   }
 }

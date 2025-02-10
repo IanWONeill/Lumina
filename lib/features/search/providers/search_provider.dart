@@ -10,6 +10,8 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 
 final isSearchLoadingProvider = StateProvider<bool>((ref) => false);
 
+final isGenreSearchProvider = StateProvider<bool>((ref) => false);
+
 final searchResultsProvider = StateNotifierProvider<SearchResultsNotifier, List<Map<String, dynamic>>>(
   (ref) {
     final dbService = ref.watch(databaseServiceProvider);
@@ -21,9 +23,12 @@ final searchResultsProvider = StateNotifierProvider<SearchResultsNotifier, List<
         if (next.isEmpty) {
           notifier.clearResults();
         } else {
-          ref.read(isSearchLoadingProvider.notifier).state = true;
-          await notifier.search(next);
-          ref.read(isSearchLoadingProvider.notifier).state = false;
+          final isGenreSearch = ref.read(isGenreSearchProvider);
+          if (!isGenreSearch) {
+            ref.read(isSearchLoadingProvider.notifier).state = true;
+            await notifier.search(next);
+            ref.read(isSearchLoadingProvider.notifier).state = false;
+          }
         }
       },
     );
@@ -36,6 +41,7 @@ final searchScreenControllerProvider = Provider((ref) {
   ref.onDispose(() {
     ref.read(searchQueryProvider.notifier).state = '';
     ref.read(isSearchLoadingProvider.notifier).state = false;
+    ref.read(isGenreSearchProvider.notifier).state = false;
     ref.read(searchResultsProvider.notifier).clearResults();
   });
   return null;
@@ -80,7 +86,49 @@ class SearchResultsNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     }
   }
 
+  Future<void> searchByGenre(int genreId) async {
+    try {
+      developer.log(
+        'Starting genre search',
+        name: 'SearchResultsNotifier',
+        error: {'genreId': genreId},
+      );
+      
+      final movies = await _dbService.getMoviesByGenre(genreId);
+      final results = movies.map((movie) => {
+        ...movie,
+        'media_type': 'movie',
+      }).toList();
+      
+      developer.log(
+        'Genre search completed',
+        name: 'SearchResultsNotifier',
+        error: {'resultCount': results.length},
+      );
+      
+      state = results;
+    } catch (e, stackTrace) {
+      developer.log(
+        'Error in genre search',
+        name: 'SearchResultsNotifier',
+        error: e,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      state = [];
+    }
+  }
+
   void clearResults() {
     state = [];
+  }
+
+  void setResults(List<Map<String, dynamic>> results) {
+    developer.log(
+      'Setting search results',
+      name: 'SearchResultsNotifier',
+      error: {'resultCount': results.length},
+    );
+    state = results;
   }
 } 

@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/movies_provider.dart';
 import '../providers/cast_provider.dart';
 import 'dart:io';
+import '../../sync/services/database_service.dart';
 
 class MovieMetadataPanel extends HookConsumerWidget {
   const MovieMetadataPanel({super.key});
@@ -22,11 +23,37 @@ class MovieMetadataPanel extends HookConsumerWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 8.0),
-          child: Text(
-            selectedMovie.originalTitle,
-            style: Theme.of(context).textTheme.headlineMedium,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                selectedMovie.originalTitle,
+                style: Theme.of(context).textTheme.headlineMedium,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+              Consumer(
+                builder: (context, ref, child) {
+                  final genres = ref.watch(movieGenresProvider(selectedMovie.tmdbId));
+                  return genres.when(
+                    data: (genreList) {
+                      if (genreList.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          genreList.join(' • '),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  );
+                },
+              ),
+            ],
           ),
         ),
         Expanded(

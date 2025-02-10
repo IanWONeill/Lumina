@@ -20,9 +20,16 @@ class Movies extends _$Movies {
 }
 
 @Riverpod(keepAlive: true)
+Future<List<String>> movieGenres(MovieGenresRef ref, int movieId) async {
+  final db = ref.watch(databaseServiceProvider);
+  final genres = await db.getMovieGenres(movieId);
+  return genres.map((g) => g['name'] as String).toList();
+}
+
+@Riverpod(keepAlive: true)
 class SelectedMovie extends _$SelectedMovie {
   @override
   Movie? build() => null;
 
   void select(Movie movie) => state = movie;
-} 
+}

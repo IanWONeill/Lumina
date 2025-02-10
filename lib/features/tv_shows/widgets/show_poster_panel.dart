@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:developer' as developer;
 import '../providers/tv_shows_provider.dart';
+import '../../../widgets/digital_clock.dart';
 
 class ShowPosterPanel extends HookConsumerWidget {
   const ShowPosterPanel({super.key});
@@ -81,6 +82,8 @@ class ShowPosterPanel extends HookConsumerWidget {
                           child: Icon(Icons.tv, size: 100),
                         ),
                       ),
+                    const SizedBox(height: 16),
+                    const DigitalClock(),
                   ],
                 );
               },
