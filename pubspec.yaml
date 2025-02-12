@@ -47,6 +47,7 @@ dependencies:
   flutter_image_compress:
   android_intent_plus:
   speech_to_text:
+  fluttertoast:
   flutter_broadcasts:
     git:
       url: https://github.com/KRTirtho/flutter_broadcasts.git
@@ -82,10 +83,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/images/missing_poster.webp
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

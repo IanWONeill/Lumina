@@ -1,5 +1,19 @@
 # Changelog
 
+## [2/11/2025]
+
+### Added
+- Movie Collections functionality
+  - Added collections to movie details screen
+  - View all movies in a collection including missing movies
+
+### Changed
+- Modified movie list sorting behavior
+  - Removed "The" from title sorting consideration
+  - Movies starting with "The" no longer grouped together
+- Added new sort options in settings
+  - Can now sort by title, release date, or date added
+
 ## [2/10/2025]
 
 ### Added

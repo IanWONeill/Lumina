@@ -31,6 +31,33 @@ class TMDBService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       
+      Map<String, dynamic>? collectionData;
+      if (data['belongs_to_collection'] != null) {
+        developer.log(
+          'Movie belongs to collection',
+          name: 'TMDBService',
+          error: {
+            'tmdbId': tmdbId,
+            'collectionId': data['belongs_to_collection']['id'],
+            'collectionName': data['belongs_to_collection']['name'],
+          },
+        );
+        
+        try {
+          collectionData = await getCollectionDetails(data['belongs_to_collection']['id']);
+        } catch (e) {
+          developer.log(
+            'Failed to fetch collection details',
+            name: 'TMDBService',
+            error: {
+              'tmdbId': tmdbId,
+              'collectionId': data['belongs_to_collection']['id'],
+              'error': e.toString(),
+            },
+          );
+        }
+      }
+
       developer.log(
         'Raw genres data from TMDB',
         name: 'TMDBService',
@@ -91,6 +118,8 @@ class TMDBService {
         'revenue': data['revenue'],
         'runtime': data['runtime'],
         'vote_average': data['vote_average'],
+        'collection_id': data['belongs_to_collection']?['id'],
+        'collection_name': data['belongs_to_collection']?['name'],
         'genres': genres,
         'cast': (data['credits']['cast'] as List?)
             ?.take(7)
@@ -99,6 +128,7 @@ class TMDBService {
                   'name': actor['name'],
                 })
             .toList() ?? [],
+        'collection': collectionData,
       };
 
       developer.log(
@@ -379,6 +409,45 @@ class TMDBService {
         name: 'TMDBService',
         error: {'actorName': actor['name']},
       );
+    }
+  }
+
+  Future<Map<String, dynamic>> getCollectionDetails(int collectionId) async {
+    developer.log(
+      'Fetching collection details',
+      name: 'TMDBService',
+      error: {'collectionId': collectionId},
+    );
+    
+    final response = await http.get(
+      Uri.parse('$_baseUrl/collection/$collectionId'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return {
+        'collection_id': data['id'],
+        'name': data['name'],
+        'overview': data['overview'],
+        'parts': (data['parts'] as List?)?.map((movie) => {
+          'tmdb_id': movie['id'],
+          'title': movie['title'],
+          'release_date': movie['release_date'],
+        }).toList() ?? [],
+      };
+    } else {
+      developer.log(
+        'Failed to fetch collection details',
+        name: 'TMDBService',
+        error: {
+          'collectionId': collectionId,
+          'statusCode': response.statusCode,
+          'response': response.body,
+        },
+        level: 1000,
+      );
+      throw Exception('Failed to fetch collection details');
     }
   }
 } 

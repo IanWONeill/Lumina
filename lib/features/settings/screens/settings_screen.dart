@@ -5,6 +5,7 @@ import '../providers/orionoid_provider.dart';
 import 'dart:convert';
 import '../widgets/orion_settings_section.dart';
 import '../widgets/sync_settings_section.dart';
+import '../widgets/sort_settings_section.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -35,6 +36,8 @@ class SettingsScreen extends ConsumerWidget {
             const OrionSettingsSection(),
             const SizedBox(height: 40),
             const SyncSettingsSection(),
+            const SizedBox(height: 40),
+            const SortSettingsSection(),
           ],
         ),
       ),

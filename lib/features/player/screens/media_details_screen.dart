@@ -9,6 +9,8 @@ import '../providers/streams_provider.dart';
 import './stream_selection_screen.dart';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import '../../../features/movies/providers/collection_provider.dart';
+import '../../../features/movies/widgets/collection_dialog.dart';
 
 class MediaDetailsScreen extends HookConsumerWidget {
   final dynamic media;
@@ -366,6 +368,70 @@ class MediaDetailsScreen extends HookConsumerWidget {
                             },
                           ),
                         ),
+                        if (isMovie) ...[
+                          const SizedBox(width: 16),
+                          Focus(
+                            child: Builder(
+                              builder: (context) {
+                                final focused = Focus.of(context).hasFocus;
+                                return Consumer(
+                                  builder: (context, ref, child) {
+                                    final collectionAsync = ref.watch(collectionProvider(media.tmdbId));
+
+                                    return collectionAsync.when(
+                                      loading: () => const ElevatedButton(
+                                        onPressed: null,
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                      error: (_, __) => const ElevatedButton(
+                                        onPressed: null,
+                                        child: Text('Error'),
+                                      ),
+                                      data: (collectionData) => ElevatedButton.icon(
+                                        onPressed: () {
+                                          if (collectionData == null) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('This movie is not part of a collection'),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) => CollectionDialog(
+                                              collectionData: collectionData,
+                                            ),
+                                          );
+                                        },
+                                        icon: Icon(
+                                          Icons.collections,
+                                          color: focused ? Colors.blue : Colors.white,
+                                        ),
+                                        label: const Text('View Collection'),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 32,
+                                            vertical: 16,
+                                          ),
+                                          backgroundColor: focused 
+                                            ? Colors.blue.withOpacity(0.2) 
+                                            : Colors.white.withOpacity(0.1),
+                                          foregroundColor: focused ? Colors.blue : Colors.white,
+                                          side: focused 
+                                            ? const BorderSide(color: Colors.blue, width: 2)
+                                            : null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
