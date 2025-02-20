@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import '../../../features/movies/providers/collection_provider.dart';
 import '../../../features/movies/widgets/collection_dialog.dart';
+import '../providers/combined_streams_provider.dart';
 
 class MediaDetailsScreen extends HookConsumerWidget {
   final dynamic media;
@@ -25,11 +26,11 @@ class MediaDetailsScreen extends HookConsumerWidget {
   Future<void> _handlePlayButton(BuildContext context, WidgetRef ref, dynamic media, bool isMovie) async {
     try {
       final streams = await ref.read(
-        streamsProvider(media, isMovie).future,
+        combinedStreamsProvider(media, isMovie).future,
       );
       final prettyJson = const JsonEncoder.withIndent('  ').convert(streams);
       developer.log(
-        'Streams data received',
+        'Combined streams data received',
         name: 'MediaDetailsScreen',
         error: prettyJson
       );
@@ -370,66 +371,73 @@ class MediaDetailsScreen extends HookConsumerWidget {
                         ),
                         if (isMovie) ...[
                           const SizedBox(width: 16),
-                          Focus(
-                            child: Builder(
-                              builder: (context) {
-                                final focused = Focus.of(context).hasFocus;
-                                return Consumer(
-                                  builder: (context, ref, child) {
-                                    final collectionAsync = ref.watch(collectionProvider(media.tmdbId));
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final collectionAsync = ref.watch(collectionProvider(media.tmdbId));
 
-                                    return collectionAsync.when(
-                                      loading: () => const ElevatedButton(
-                                        onPressed: null,
-                                        child: CircularProgressIndicator(),
+                              return collectionAsync.when(
+                                loading: () => const ElevatedButton(
+                                  onPressed: null,
+                                  child: CircularProgressIndicator(),
+                                ),
+                                error: (_, __) => const ElevatedButton(
+                                  onPressed: null,
+                                  child: Text('Error'),
+                                ),
+                                data: (collections) => collections == null || collections.isEmpty
+                                  ? ElevatedButton.icon(
+                                      onPressed: null,
+                                      icon: Icon(
+                                        Icons.collections,
+                                        color: Colors.grey,
                                       ),
-                                      error: (_, __) => const ElevatedButton(
-                                        onPressed: null,
-                                        child: Text('Error'),
+                                      label: const Text('No Collections'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 32,
+                                          vertical: 16,
+                                        ),
+                                        backgroundColor: Colors.grey.withOpacity(0.1),
+                                        foregroundColor: Colors.grey,
                                       ),
-                                      data: (collectionData) => ElevatedButton.icon(
-                                        onPressed: () {
-                                          if (collectionData == null) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('This movie is not part of a collection'),
-                                                duration: Duration(seconds: 2),
+                                    )
+                                  : Focus(
+                                      child: Builder(
+                                        builder: (context) {
+                                          final focused = Focus.of(context).hasFocus;
+                                          return ElevatedButton.icon(
+                                            onPressed: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) => CollectionDialog(
+                                                  collections: collections,
+                                                ),
+                                              );
+                                            },
+                                            icon: Icon(
+                                              Icons.collections,
+                                              color: focused ? Colors.blue : Colors.white,
+                                            ),
+                                            label: Text('View Collections (${collections.length})'),
+                                            style: ElevatedButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 32,
+                                                vertical: 16,
                                               ),
-                                            );
-                                            return;
-                                          }
-                                          
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => CollectionDialog(
-                                              collectionData: collectionData,
+                                              backgroundColor: focused 
+                                                ? Colors.blue.withOpacity(0.2) 
+                                                : Colors.white.withOpacity(0.1),
+                                              foregroundColor: focused ? Colors.blue : Colors.white,
+                                              side: focused 
+                                                ? const BorderSide(color: Colors.blue, width: 2)
+                                                : null,
                                             ),
                                           );
                                         },
-                                        icon: Icon(
-                                          Icons.collections,
-                                          color: focused ? Colors.blue : Colors.white,
-                                        ),
-                                        label: const Text('View Collection'),
-                                        style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 32,
-                                            vertical: 16,
-                                          ),
-                                          backgroundColor: focused 
-                                            ? Colors.blue.withOpacity(0.2) 
-                                            : Colors.white.withOpacity(0.1),
-                                          foregroundColor: focused ? Colors.blue : Colors.white,
-                                          side: focused 
-                                            ? const BorderSide(color: Colors.blue, width: 2)
-                                            : null,
-                                        ),
                                       ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
+                                    ),
+                              );
+                            },
                           ),
                         ],
                       ],

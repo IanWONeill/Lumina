@@ -34,7 +34,9 @@ class DatabaseService {
             vote_average REAL,
             is_watched INTEGER DEFAULT 0,
             watch_progress INTEGER DEFAULT 0,
-            last_updated INTEGER
+            last_updated INTEGER,
+            marked_for_deletion INTEGER,
+            deletion_syncs INTEGER
           )
         ''');
 
@@ -48,7 +50,9 @@ class DatabaseService {
             number_of_episodes INTEGER,
             number_of_seasons INTEGER,
             total_episodes_count INTEGER,
-            last_updated INTEGER
+            last_updated INTEGER,
+            marked_for_deletion INTEGER,
+            deletion_syncs INTEGER
           )
         ''');
 
@@ -130,6 +134,8 @@ class DatabaseService {
             overview TEXT,
             poster_path TEXT,
             backdrop_path TEXT,
+            source TEXT NOT NULL,
+            wikidata_id TEXT,
             last_updated INTEGER
           )
         ''');
@@ -137,13 +143,13 @@ class DatabaseService {
         await db.execute('''
           CREATE TABLE movie_collections (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            movie_id INTEGER,
+            movie_tmdb_id INTEGER,
+            movie_imdb_id TEXT,
             collection_id INTEGER,
             title TEXT NOT NULL,
             release_date TEXT,
-            FOREIGN KEY (movie_id) REFERENCES movies (tmdb_id),
-            FOREIGN KEY (collection_id) REFERENCES collections (collection_id),
-            UNIQUE(movie_id, collection_id)
+            FOREIGN KEY (movie_tmdb_id) REFERENCES movies (tmdb_id),
+            FOREIGN KEY (collection_id) REFERENCES collections (collection_id)
           )
         ''');
 
@@ -152,31 +158,6 @@ class DatabaseService {
           name: 'DatabaseService',
           error: {'path': path},
         );
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        developer.log(
-          'Database upgrade',
-          name: 'DatabaseService',
-          error: {
-            'oldVersion': oldVersion,
-            'newVersion': newVersion,
-          },
-        );
-        if (oldVersion < 3) {
-          await db.execute(
-            'ALTER TABLE movies ADD COLUMN is_watched INTEGER DEFAULT 0',
-          );
-          await db.execute(
-            'ALTER TABLE movies ADD COLUMN watch_progress INTEGER DEFAULT 0',
-          );
-          
-          await db.execute(
-            'ALTER TABLE episodes ADD COLUMN is_watched INTEGER DEFAULT 0',
-          );
-          await db.execute(
-            'ALTER TABLE episodes ADD COLUMN watch_progress INTEGER DEFAULT 0',
-          );
-        }
       },
     );
   }
@@ -215,6 +196,14 @@ class DatabaseService {
     
     await db.transaction((txn) async {
       try {
+        final exists = await txn.query(
+          'movies',
+          where: 'tmdb_id = ?',
+          whereArgs: [movie['tmdb_id']],
+          limit: 1,
+        );
+        final isNewMovie = exists.isEmpty;
+
         developer.log(
           'Inserting movie with genres',
           name: 'DatabaseService',
@@ -310,6 +299,10 @@ class DatabaseService {
               'collection_id': movie['collection']['collection_id'],
               'name': movie['collection']['name'],
               'overview': movie['collection']['overview'],
+              'poster_path': movie['collection']['poster_path'],
+              'backdrop_path': movie['collection']['backdrop_path'],
+              'source': movie['collection']['source'] ?? 'tmdb',
+              'wikidata_id': movie['collection']['wikidata_id'],
               'last_updated': DateTime.now().millisecondsSinceEpoch,
             },
             conflictAlgorithm: ConflictAlgorithm.replace,
@@ -319,7 +312,8 @@ class DatabaseService {
             await txn.insert(
               'movie_collections',
               {
-                'movie_id': part['tmdb_id'],
+                'movie_tmdb_id': part['tmdb_id'],
+                'movie_imdb_id': part['imdb_id'],
                 'collection_id': movie['collection']['collection_id'],
                 'title': part['title'],
                 'release_date': part['release_date'],
@@ -327,6 +321,10 @@ class DatabaseService {
               conflictAlgorithm: ConflictAlgorithm.ignore,
             );
           }
+        }
+
+        if (isNewMovie) {
+          _notifyMovieAdded();
         }
       } catch (e, st) {
         developer.log(
@@ -349,6 +347,14 @@ class DatabaseService {
     
     await db.transaction((txn) async {
       try {
+        final exists = await txn.query(
+          'tv_shows',
+          where: 'tmdb_id = ?',
+          whereArgs: [show['tmdb_id']],
+          limit: 1,
+        );
+        final isNewShow = exists.isEmpty;
+
         developer.log(
           'Starting TV show transaction',
           name: 'DatabaseService',
@@ -535,6 +541,10 @@ class DatabaseService {
           name: 'DatabaseService',
           error: {'showId': show['tmdb_id']},
         );
+
+        if (isNewShow) {
+          _notifyTVShowAdded();
+        }
       } catch (e, st) {
         developer.log(
           'Error in TV show transaction',
@@ -1134,6 +1144,8 @@ class DatabaseService {
           'overview': collection['overview'],
           'poster_path': collection['poster_path'],
           'backdrop_path': collection['backdrop_path'],
+          'source': collection['source'] ?? 'tmdb',
+          'wikidata_id': collection['wikidata_id'],
           'last_updated': DateTime.now().millisecondsSinceEpoch,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
@@ -1150,7 +1162,8 @@ class DatabaseService {
           await txn.insert(
             'movie_collections',
             {
-              'movie_id': movie['tmdb_id'],
+              'movie_tmdb_id': movie['tmdb_id'],
+              'movie_imdb_id': movie['imdb_id'],
               'collection_id': collection['collection_id'],
               'title': movie['title'],
               'release_date': movie['release_date'],
@@ -1168,7 +1181,7 @@ class DatabaseService {
     await db.insert(
       'movie_collections',
       {
-        'movie_id': movieId,
+        'movie_tmdb_id': movieId,
         'collection_id': collectionId,
       },
       conflictAlgorithm: ConflictAlgorithm.ignore,
@@ -1188,30 +1201,330 @@ class DatabaseService {
 
   Future<List<Map<String, dynamic>>> getMoviesInCollection(int collectionId) async {
     final db = await database;
+    
     final result = await db.rawQuery('''
       SELECT 
-        mc.movie_id as tmdb_id,
+        mc.movie_tmdb_id as tmdb_id,
+        mc.movie_imdb_id as imdb_id,
         COALESCE(m.original_title, mc.title) as original_title,
         mc.release_date,
         CASE 
-          WHEN m.tmdb_id IS NULL THEN 'missing'
-          ELSE 'present'
-        END as status
+          WHEN m.tmdb_id IS NOT NULL OR m2.imdb_id IS NOT NULL THEN 'present'
+          ELSE 'missing'
+        END as status,
+        COALESCE(m.tmdb_id, m2.tmdb_id) as linked_tmdb_id
       FROM movie_collections mc
-      LEFT JOIN movies m ON mc.movie_id = m.tmdb_id
+      LEFT JOIN movies m ON mc.movie_tmdb_id = m.tmdb_id
+      LEFT JOIN movies m2 ON mc.movie_imdb_id = m2.imdb_id
       WHERE mc.collection_id = ?
-      ORDER BY mc.release_date ASC
+      ORDER BY mc.release_date ASC NULLS LAST
     ''', [collectionId]);
-    return result;
+
+    developer.log(
+      'Found movies in collection',
+      name: 'DatabaseService',
+      error: {
+        'collectionId': collectionId,
+        'movieCount': result.length,
+        'movies': result.map((m) => {
+          'title': m['original_title'],
+          'tmdbId': m['tmdb_id'],
+          'imdbId': m['imdb_id'],
+          'status': m['status'],
+          'linkedTmdbId': m['linked_tmdb_id'],
+        }).toList(),
+      },
+    );
+
+    return result.map((movie) => {
+      'tmdb_id': movie['linked_tmdb_id'] ?? movie['tmdb_id'],
+      'imdb_id': movie['imdb_id'],
+      'original_title': movie['original_title'],
+      'status': movie['status'],
+      'release_date': movie['release_date'],
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> getCollectionsForMovie(int movieId) async {
     final db = await database;
+    
+    final movieResult = await db.query(
+      'movies',
+      columns: ['imdb_id'],
+      where: 'tmdb_id = ?',
+      whereArgs: [movieId],
+      limit: 1,
+    );
+
+    if (movieResult.isEmpty) {
+      developer.log(
+        'Movie not found',
+        name: 'DatabaseService',
+        error: {'movieId': movieId},
+      );
+      return [];
+    }
+
+    final imdbId = movieResult.first['imdb_id'] as String?;
+    
     final result = await db.rawQuery('''
-      SELECT c.* FROM collections c
+      SELECT DISTINCT
+        c.*,
+        CASE 
+          WHEN c.source = 'wikidata' THEN c.wikidata_id
+          ELSE NULL
+        END as collection_source_id
+      FROM collections c
       INNER JOIN movie_collections mc ON mc.collection_id = c.collection_id
-      WHERE mc.movie_id = ?
-    ''', [movieId]);
+      WHERE mc.movie_tmdb_id = ? OR mc.movie_imdb_id = ?
+      GROUP BY c.collection_id
+      ORDER BY c.source, c.name
+    ''', [movieId, imdbId]);
+
+    developer.log(
+      'Found collections for movie',
+      name: 'DatabaseService',
+      error: {
+        'movieId': movieId,
+        'imdbId': imdbId,
+        'collectionsCount': result.length,
+        'collections': result.map((c) => {
+          'name': c['name'],
+          'source': c['source'],
+          'collection_id': c['collection_id'],
+        }).toList(),
+      },
+    );
+
     return result;
+  }
+
+  Future<void> insertWikidataCollections(List<Map<String, dynamic>> collections) async {
+    final db = await database;
+    
+    await db.transaction((txn) async {
+      try {
+        for (final collection in collections) {
+          developer.log(
+            'Processing Wikidata collection',
+            name: 'DatabaseService',
+            error: {
+              'collectionName': collection['name'],
+              'wikidataId': collection['wikidata_id'],
+              'movieCount': collection['parts']?.length ?? 0,
+            },
+          );
+
+          await txn.insert(
+            'collections',
+            {
+              'collection_id': collection['name'].hashCode.abs(),
+              'name': collection['name'],
+              'overview': null,
+              'poster_path': null,
+              'backdrop_path': null,
+              'source': 'wikidata',
+              'wikidata_id': collection['wikidata_id'],
+              'last_updated': DateTime.now().millisecondsSinceEpoch,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+
+          if (collection['parts'] != null) {
+            for (final part in collection['parts']) {
+              final existingEntry = await txn.query(
+                'movie_collections',
+                where: 'movie_imdb_id = ? AND collection_id = ?',
+                whereArgs: [part['imdb_id'], collection['name'].hashCode.abs()],
+              );
+
+              if (existingEntry.isEmpty) {
+                developer.log(
+                  'Inserting new movie into collection',
+                  name: 'DatabaseService',
+                  error: {
+                    'title': part['title'],
+                    'imdbId': part['imdb_id'],
+                    'releaseDate': part['release_date'],
+                    'collectionName': collection['name'],
+                  },
+                );
+
+                await txn.insert(
+                  'movie_collections',
+                  {
+                    'movie_imdb_id': part['imdb_id'],
+                    'collection_id': collection['name'].hashCode.abs(),
+                    'title': part['title'],
+                    'release_date': part['release_date'],
+                  },
+                  conflictAlgorithm: ConflictAlgorithm.ignore,
+                );
+              } else {
+                developer.log(
+                  'Movie already exists in collection',
+                  name: 'DatabaseService',
+                  error: {
+                    'title': part['title'],
+                    'imdbId': part['imdb_id'],
+                    'collectionName': collection['name'],
+                  },
+                );
+              }
+            }
+          }
+        }
+      } catch (e, st) {
+        developer.log(
+          'Error inserting Wikidata collections',
+          name: 'DatabaseService',
+          error: {'error': e.toString()},
+          stackTrace: st,
+          level: 1000,
+        );
+        rethrow;
+      }
+    });
+  }
+
+  Future<void> deleteMovie(int tmdbId) async {
+    final db = await database;
+    
+    await db.transaction((txn) async {
+      await txn.delete(
+        'media_cast',
+        where: 'media_id = ? AND media_type = ?',
+        whereArgs: [tmdbId, 'movie'],
+      );
+
+      await txn.delete(
+        'movie_genres',
+        where: 'movie_id = ?',
+        whereArgs: [tmdbId],
+      );
+
+      await txn.delete(
+        'movies',
+        where: 'tmdb_id = ?',
+        whereArgs: [tmdbId],
+      );
+    });
+  }
+
+  Future<List<int>> getMovieTmdbIds() async {
+    final db = await database;
+    final result = await db.query(
+      'movies',
+      columns: ['tmdb_id'],
+    );
+    return result.map((row) => row['tmdb_id'] as int).toList();
+  }
+
+  Future<List<int>> getTVShowTmdbIds() async {
+    final db = await database;
+    final result = await db.query(
+      'tv_shows',
+      columns: ['tmdb_id'],
+    );
+    return result.map((row) => row['tmdb_id'] as int).toList();
+  }
+
+  Future<void> markForDeletion(String mediaType, int tmdbId) async {
+    final db = await database;
+    final table = mediaType == 'movie' ? 'movies' : 'tv_shows';
+    
+    await db.update(
+      table,
+      {
+        'marked_for_deletion': DateTime.now().millisecondsSinceEpoch,
+        'deletion_syncs': 1,
+      },
+      where: 'tmdb_id = ?',
+      whereArgs: [tmdbId],
+    );
+    
+    developer.log(
+      'Marked for deletion',
+      name: 'DatabaseService',
+      error: {
+        'mediaType': mediaType,
+        'tmdbId': tmdbId,
+      },
+    );
+  }
+
+  Future<void> incrementDeletionSync(String mediaType, int tmdbId) async {
+    final db = await database;
+    final table = mediaType == 'movie' ? 'movies' : 'tv_shows';
+    
+    await db.rawUpdate('''
+      UPDATE $table 
+      SET deletion_syncs = deletion_syncs + 1
+      WHERE tmdb_id = ?
+    ''', [tmdbId]);
+  }
+
+  Future<void> clearDeletionMark(String mediaType, int tmdbId) async {
+    final db = await database;
+    final table = mediaType == 'movie' ? 'movies' : 'tv_shows';
+    
+    await db.update(
+      table,
+      {
+        'marked_for_deletion': null,
+        'deletion_syncs': null,
+      },
+      where: 'tmdb_id = ?',
+      whereArgs: [tmdbId],
+    );
+  }
+
+  Future<int> getMovieCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM movies');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> getTVShowCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM tv_shows');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> getItemsMarkedForDeletion(
+    String mediaType,
+    int minSyncs,
+  ) async {
+    final db = await database;
+    final table = mediaType == 'movie' ? 'movies' : 'tv_shows';
+    
+    return await db.query(
+      table,
+      where: 'marked_for_deletion IS NOT NULL AND deletion_syncs >= ?',
+      whereArgs: [minSyncs],
+    );
+  }
+
+  Function? _onMovieAdded;
+  Function? _onTVShowAdded;
+
+  void setOnMovieAdded(Function callback) {
+    _onMovieAdded = callback;
+  }
+
+  void setOnTVShowAdded(Function callback) {
+    _onTVShowAdded = callback;
+  }
+
+  void _notifyMovieAdded() {
+    if (_onMovieAdded != null) {
+      _onMovieAdded!();
+    }
+  }
+
+  void _notifyTVShowAdded() {
+    if (_onTVShowAdded != null) {
+      _onTVShowAdded!();
+    }
   }
 }

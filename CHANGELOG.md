@@ -1,5 +1,29 @@
 # Changelog
 
+## [2/19/2025]
+
+### Added
+- Torrentio integration
+  - Added Torrentio support
+  - Implemented customizable Torrentio stream filters
+- RSS feed ticker
+  - Added to home screen
+  - Displays movie/TV show release feeds(customizable)
+  - Add up to 3 feeds
+- Database statistics
+  - Added movie/TV show counter on home screen
+  - Displays total movies or shows in your database
+- Exit Dialog
+  - Added dialog to ask if you want to exit the app
+
+### Changed
+- Enhanced Collections feature
+  - Integrated Wikidata for expanded collection information
+  - Note: May result in some duplicate collection entries
+- Modified database cleanup
+  - Items are now removed after 5 syncs if not present in Simkl lists
+  - Improves database accuracy with Simkl list changes
+
 ## [2/11/2025]
 
 ### Added

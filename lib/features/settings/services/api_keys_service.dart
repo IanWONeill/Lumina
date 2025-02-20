@@ -7,6 +7,7 @@ class ApiKeysService {
   static const _orionPrefix = 'orion_app_key = ';
   static const _simklPrefix = 'simkl_api_key = ';
   static const _tmdbPrefix = 'tmdb_api_key = ';
+  static const _premiumizePrefix = 'premiumize_api_key = ';
   
   static Future<String> get _filePath async {
     final dbDir = Directory('/storage/emulated/0/Debrid_Player');
@@ -38,14 +39,11 @@ class ApiKeysService {
           keys['simkl'] = line.substring(_simklPrefix.length).trim();
         } else if (line.startsWith(_tmdbPrefix)) {
           keys['tmdb'] = line.substring(_tmdbPrefix.length).trim();
+        } else if (line.startsWith(_premiumizePrefix)) {
+          keys['premiumize'] = line.substring(_premiumizePrefix.length).trim();
         }
       }
 
-      developer.log(
-        'Successfully read API keys',
-        name: 'ApiKeysService',
-        error: {'foundKeys': keys.keys.toList()},
-      );
       return keys;
     } catch (e, stackTrace) {
       developer.log(

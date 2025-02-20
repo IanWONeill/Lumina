@@ -14,6 +14,7 @@ final syncProvider = AsyncNotifierProvider<SyncNotifier, void>(SyncNotifier.new)
 class SyncNotifier extends AsyncNotifier<void> {
   late final DatabaseService _dbService;
   late final TMDBService _tmdbService;
+  late final SimklSyncService _simklService;
 
   @override
   Future<void> build() async {
@@ -23,7 +24,17 @@ class SyncNotifier extends AsyncNotifier<void> {
     if (apiKeys['tmdb'] == null) {
       throw Exception('TMDB API key not found');
     }
-    _tmdbService = TMDBService(apiKeys['tmdb']!);
+    if (apiKeys['simkl'] == null) {
+      throw Exception('SIMKL API key not found');
+    }
+
+    final simklToken = await ref.read(simklAuthProvider.future);
+    if (simklToken == null) {
+      throw Exception('SIMKL auth token not found');
+    }
+
+    _simklService = SimklSyncService(simklToken, apiKeys['simkl']!, ref);
+    _tmdbService = TMDBService(apiKeys['tmdb']!, _dbService, _simklService);
   }
 
   Future<void> startSync() async {
@@ -33,20 +44,10 @@ class SyncNotifier extends AsyncNotifier<void> {
       ref.read(syncStatusProvider.notifier).state = 'Starting sync process...';
       developer.log('Starting Sync Process', name: 'SyncNotifier');
       
-      final simklToken = await ref.read(simklAuthProvider.future);
-      final apiKeys = await ApiKeysService.readApiKeys();
+      await _tmdbService.syncWithSimkl();
       
-      if (simklToken == null) {
-        throw Exception('SIMKL auth token not found');
-      }
-      if (apiKeys['simkl'] == null) {
-        throw Exception('SIMKL API key not found');
-      }
-
-      final simklService = SimklSyncService(simklToken, apiKeys['simkl']!, ref);
-      
-      await _syncMovies(simklService);
-      await _syncTVShows(simklService);
+      await _syncMovies(_simklService);
+      await _syncTVShows(_simklService);
       
       developer.log('Sync Complete', name: 'SyncNotifier');
       ref.invalidate(moviesProvider);

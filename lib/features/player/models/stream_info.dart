@@ -149,6 +149,94 @@ class StreamInfo {
     return StreamInfo.fromJson(enrichedStreamData);
   }
 
+  factory StreamInfo.fromTorrentioResponse(Map<String, dynamic> json) {
+    try {
+      final title = json['title'] as String;
+      final filename = json['behaviorHints']?['filename'] as String? ?? '';
+      
+      final qualityMatch = RegExp(r'(\d+p|4K)').firstMatch(json['name'] as String);
+      final quality = qualityMatch?.group(1)?.toLowerCase() ?? 'unknown';
+      
+      final seedsMatch = RegExp(r'👤\s*(\d+)').firstMatch(title);
+      final seeds = int.tryParse(seedsMatch?.group(1) ?? '0') ?? 0;
+      
+      final sizeMatch = RegExp(r'💾\s*([\d.]+)\s*(GB|MB)').firstMatch(title);
+      final sizeValue = double.tryParse(sizeMatch?.group(1) ?? '0') ?? 0;
+      final sizeUnit = sizeMatch?.group(2) ?? 'MB';
+      final fileSize = '$sizeValue $sizeUnit';
+      
+      final sourceMatch = RegExp(r'⚙️\s*(.+)$').firstMatch(title);
+      final source = sourceMatch?.group(1)?.trim() ?? 'unknown';
+      
+      List<String> hdrFormats = [];
+      final filenameLower = filename.toLowerCase();
+      
+      if (RegExp(r'\b(dolby.?vision|dv)\b').hasMatch(filenameLower)) {
+        hdrFormats.add('Dolby Vision');
+      }
+      if (RegExp(r'\bhdr.?10.?\+|\bhdr.?10.?plus\b').hasMatch(filenameLower)) {
+        hdrFormats.add('HDR10+');
+      }
+      else if (RegExp(r'\bhdr.?10\b').hasMatch(filenameLower)) {
+        hdrFormats.add('HDR10');
+      }
+      else if (RegExp(r'\bhdr\b|\.hdr\.').hasMatch(filenameLower)) {
+        hdrFormats.add('HDR');
+      }
+      
+      if (hdrFormats.isEmpty) {
+        hdrFormats.add('SDR');
+      }
+      
+      final bingeGroup = (json['behaviorHints']?['bingeGroup'] as String? ?? '').split('|');
+      String codec = 'unknown';
+      String release = 'unknown';
+      
+      if (bingeGroup.length > 2) {
+        release = bingeGroup[2];
+      }
+      
+      final codecMatch = RegExp(r'x264|x265|HEVC').firstMatch(filename);
+      if (codecMatch != null) {
+        codec = codecMatch.group(0)!;
+      }
+      
+      return StreamInfo(
+        id: json['url'] as String,
+        orionId: '',
+        magnetLink: '',
+        seeds: seeds,
+        quality: quality,
+        codec: codec,
+        fileName: filename,
+        fileSize: fileSize,
+        hdrFormats: hdrFormats,
+        audioChannels: 2,
+        audioSystem: 'AAC',
+        release: release,
+        uploader: source,
+        source: 'torrentio',
+        isAtmos: false,
+        isPack: false,
+        showTitle: '',
+      );
+    } catch (e, stackTrace) {
+      developer.log(
+        'Error in StreamInfo.fromTorrentioResponse: $e',
+        name: 'StreamInfo',
+        error: e,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      developer.log(
+        'Problematic JSON: ${json.toString()}',
+        name: 'StreamInfo',
+        level: 1000,
+      );
+      rethrow;
+    }
+  }
+
   String get qualityLabel {
     switch (quality) {
       case 'hd4k':

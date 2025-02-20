@@ -87,14 +87,6 @@ class StreamSelectionScreen extends ConsumerWidget {
           final streamInfo = StreamInfo.fromJson(enrichedStream);
 
           if (!isMovie) {
-            if (!streamInfo.isValidForShow(showTitle)) {
-              developer.log(
-                'Skipping stream for wrong show',
-                name: 'StreamSelectionScreen',
-                error: {'fileName': streamInfo.fileName}
-              );
-              return null;
-            }
 
             if (streamInfo.isPack) {
               final fileName = streamInfo.fileName.toLowerCase();
@@ -384,34 +376,45 @@ class StreamSelectionScreen extends ConsumerWidget {
         ),
       );
 
-      final orionService = ref.read(orionoidServiceProvider);
-      final token = await ref.read(orionoidAuthProvider.future);
+      String? streamUrl;
       
-      if (token == null) {
-        throw Exception('No Orionoid token found');
-      }
-
-      int? actualSeasonNumber;
-      if (!isMovie && seasonId != null) {
-        final seasonDetails = await db.query(
-          'seasons',
-          columns: ['season_number'],
-          where: 'id = ?',
-          whereArgs: [seasonId],
-          limit: 1,
+      if (stream.source == 'Torrentio') {
+        streamUrl = stream.id;
+        developer.log(
+          'Using direct Torrentio stream URL',
+          name: 'StreamSelectionScreen',
+          error: {'url': streamUrl},
         );
-        if (seasonDetails.isNotEmpty) {
-          actualSeasonNumber = seasonDetails.first['season_number'] as int;
+      } else {
+        final orionService = ref.read(orionoidServiceProvider);
+        final token = await ref.read(orionoidAuthProvider.future);
+        
+        if (token == null) {
+          throw Exception('No Orionoid token found');
         }
-      }
 
-      final streamUrl = await orionService.resolveDebridLink(
-        token: token,
-        orionId: stream.orionId,
-        streamId: stream.id,
-        seasonNumber: isMovie ? null : actualSeasonNumber,
-        episodeNumber: isMovie ? null : episodeNumber,
-      );
+        int? actualSeasonNumber;
+        if (!isMovie && seasonId != null) {
+          final seasonDetails = await db.query(
+            'seasons',
+            columns: ['season_number'],
+            where: 'id = ?',
+            whereArgs: [seasonId],
+            limit: 1,
+          );
+          if (seasonDetails.isNotEmpty) {
+            actualSeasonNumber = seasonDetails.first['season_number'] as int;
+          }
+        }
+
+        streamUrl = await orionService.resolveDebridLink(
+          token: token,
+          orionId: stream.orionId,
+          streamId: stream.id,
+          seasonNumber: isMovie ? null : actualSeasonNumber,
+          episodeNumber: isMovie ? null : episodeNumber,
+        );
+      }
       
       if (streamUrl == null || streamUrl.isEmpty) {
         throw Exception('Failed to resolve stream URL');

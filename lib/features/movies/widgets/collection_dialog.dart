@@ -8,19 +8,15 @@ import '../../database/providers/database_provider.dart';
 import '../models/movie.dart';
 
 class CollectionDialog extends ConsumerWidget {
-  final Map<String, dynamic> collectionData;
+  final List<Map<String, dynamic>> collections;
 
   const CollectionDialog({
     super.key,
-    required this.collectionData,
+    required this.collections,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final collection = collectionData['collection'] as Map<String, dynamic>;
-    final movies = collectionData['movies'] as List<Map<String, dynamic>>;
-    final db = ref.read(databaseServiceProvider);
-
     return Dialog(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -28,8 +24,106 @@ class CollectionDialog extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              collection['name'] as String,
+              'Collections',
               style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            ...collections.map((collection) {
+              final collectionData = collection['collection'] as Map<String, dynamic>;
+              final source = collectionData['source'] as String;
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: FocusableActionDetector(
+                  actions: {
+                    ActivateIntent: CallbackAction<ActivateIntent>(
+                      onInvoke: (_) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => _CollectionMoviesDialog(
+                            collection: collection,
+                          ),
+                        );
+                        return null;
+                      },
+                    ),
+                  },
+                  child: Builder(
+                    builder: (context) {
+                      final focused = Focus.of(context).hasFocus;
+                      return ElevatedButton.icon(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => _CollectionMoviesDialog(
+                              collection: collection,
+                            ),
+                          );
+                        },
+                        icon: Icon(
+                          source == 'tmdb' ? Icons.movie : Icons.public,
+                          color: focused ? Colors.blue : Colors.white,
+                        ),
+                        label: Text(collectionData['name'] as String),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
+                          backgroundColor: focused 
+                            ? Colors.blue.withOpacity(0.2) 
+                            : Colors.white.withOpacity(0.1),
+                          foregroundColor: focused ? Colors.blue : Colors.white,
+                          side: focused 
+                            ? const BorderSide(color: Colors.blue, width: 2)
+                            : null,
+                          minimumSize: const Size(300, 50),
+                        ),
+                      );
+                    }
+                  ),
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionMoviesDialog extends ConsumerWidget {
+  final Map<String, dynamic> collection;
+
+  const _CollectionMoviesDialog({
+    required this.collection,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final db = ref.read(databaseServiceProvider);
+    final movies = collection['movies'] as List<Map<String, dynamic>>;
+    final collectionData = collection['collection'] as Map<String, dynamic>;
+
+    return Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  collectionData['name'] as String,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  collectionData['source'] == 'tmdb' ? Icons.movie : Icons.public,
+                  size: 16,
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -53,6 +147,7 @@ class CollectionDialog extends ConsumerWidget {
                           if (isPresent) {
                             final movieData = await db.getMovie(movie['tmdb_id'] as int);
                             if (movieData != null && context.mounted) {
+                              Navigator.pop(context);
                               Navigator.pop(context);
                               Navigator.push(
                                 context,
@@ -113,6 +208,16 @@ class CollectionDialog extends ConsumerWidget {
                                   fontSize: 12,
                                 ),
                               ),
+                              if (movie['release_date'] != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  movie['release_date'] as String,
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         );
