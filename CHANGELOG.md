@@ -1,5 +1,17 @@
 # Changelog
 
+## [2/25/2025]
+
+### Changed
+- Added drama, history, crime, mystery as genre filters
+  - Changed genre screen from 2 rows to 3 to better fit all the genres
+- Added a few more sizes for torrentio filters
+
+### Fixes
+- Fixed torrentio filters not working with sizes below 1GB
+- Fixed wrong syntax for the sql query for collections
+- Fixed the duplicates that would show for some sollections
+
 ## [2/19/2025]
 
 ### Added

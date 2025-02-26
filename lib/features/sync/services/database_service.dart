@@ -309,17 +309,25 @@ class DatabaseService {
           );
 
           for (final part in movie['collection']['parts']) {
-            await txn.insert(
+            final existingEntry = await txn.query(
               'movie_collections',
-              {
-                'movie_tmdb_id': part['tmdb_id'],
-                'movie_imdb_id': part['imdb_id'],
-                'collection_id': movie['collection']['collection_id'],
-                'title': part['title'],
-                'release_date': part['release_date'],
-              },
-              conflictAlgorithm: ConflictAlgorithm.ignore,
+              where: 'movie_tmdb_id = ? AND collection_id = ?',
+              whereArgs: [part['tmdb_id'], movie['collection']['collection_id']],
             );
+
+            if (existingEntry.isEmpty) {
+              await txn.insert(
+                'movie_collections',
+                {
+                  'movie_tmdb_id': part['tmdb_id'],
+                  'movie_imdb_id': part['imdb_id'],
+                  'collection_id': movie['collection']['collection_id'],
+                  'title': part['title'],
+                  'release_date': part['release_date'],
+                },
+                conflictAlgorithm: ConflictAlgorithm.ignore,
+              );
+            }
           }
         }
 
@@ -1217,7 +1225,9 @@ class DatabaseService {
       LEFT JOIN movies m ON mc.movie_tmdb_id = m.tmdb_id
       LEFT JOIN movies m2 ON mc.movie_imdb_id = m2.imdb_id
       WHERE mc.collection_id = ?
-      ORDER BY mc.release_date ASC NULLS LAST
+      ORDER BY 
+        CASE WHEN mc.release_date IS NULL THEN 1 ELSE 0 END,
+        mc.release_date ASC
     ''', [collectionId]);
 
     developer.log(

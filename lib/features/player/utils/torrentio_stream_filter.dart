@@ -7,8 +7,16 @@ class TorrentioStreamFilter {
     TorrentioQuerySettings settings,
   ) {
     var filteredStreams = streams.where((stream) {
-      final sizeStr = stream.fileSize.replaceAll(' GB', '');
-      final sizeInGB = double.parse(sizeStr);
+      double sizeInGB;
+      if (stream.fileSize.endsWith(' GB')) {
+        sizeInGB = double.parse(stream.fileSize.replaceAll(' GB', ''));
+      } else if (stream.fileSize.endsWith(' MB')) {
+        sizeInGB = double.parse(stream.fileSize.replaceAll(' MB', '')) / 1024;
+      } else {
+        // Unknown format - don't filter by size
+        return settings.hideHdr ? !stream.isHdr : true;
+      }
+      
       final sizeInBytes = (sizeInGB * 1024 * 1024 * 1024).toInt();
 
       if (sizeInBytes < settings.minFileSize || sizeInBytes > settings.maxFileSize) {
@@ -41,8 +49,23 @@ class TorrentioStreamFilter {
           return b.seeds.compareTo(a.seeds);
 
         case 'size':
-          final sizeA = double.parse(a.fileSize.replaceAll(' GB', ''));
-          final sizeB = double.parse(b.fileSize.replaceAll(' GB', ''));
+          double sizeA, sizeB;
+          
+          if (a.fileSize.endsWith(' GB')) {
+            sizeA = double.parse(a.fileSize.replaceAll(' GB', ''));
+          } else if (a.fileSize.endsWith(' MB')) {
+            sizeA = double.parse(a.fileSize.replaceAll(' MB', '')) / 1024;
+          } else {
+            sizeA = 0;
+          }
+          
+          if (b.fileSize.endsWith(' GB')) {
+            sizeB = double.parse(b.fileSize.replaceAll(' GB', ''));
+          } else if (b.fileSize.endsWith(' MB')) {
+            sizeB = double.parse(b.fileSize.replaceAll(' MB', '')) / 1024;
+          } else {
+            sizeB = 0;
+          }
           
           final sizeComparison = sizeB.compareTo(sizeA);
           

@@ -253,48 +253,31 @@ class _RSSTickerState extends ConsumerState<RSSTicker> {
       height: height,
       child: Row(
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final textSpan = TextSpan(
-                text: feed.name,
-                style: TextStyle(
-                  color: Colors.blue.withOpacity(0.9),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              );
-              final textPainter = TextPainter(
-                text: textSpan,
-                textDirection: TextDirection.ltr,
-                maxLines: 1,
-              )..layout();
-              
-              final desiredWidth = textPainter.width + 24;
-              
-              return Container(
-                width: desiredWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.2),
-                  border: Border(
-                    right: BorderSide(
-                      color: Colors.blue.withOpacity(0.3),
-                      width: 1,
-                    ),
+          IntrinsicWidth(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.2),
+                border: Border(
+                  right: BorderSide(
+                    color: Colors.blue.withOpacity(0.3),
+                    width: 1,
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    feed.name,
-                    style: TextStyle(
-                      color: Colors.blue.withOpacity(0.9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+              ),
+              child: Center(
+                child: Text(
+                  feed.name,
+                  style: TextStyle(
+                    color: Colors.blue.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              );
-            },
+              ),
+            ),
           ),
           Expanded(
             child: ListView.builder(

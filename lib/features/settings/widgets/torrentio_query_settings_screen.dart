@@ -63,7 +63,7 @@ class TorrentioQuerySettingsScreen extends StatelessWidget {
                     onPressed: () => _showSelectionDialog<String>(
                       context: context,
                       title: 'Select Minimum File Size',
-                      options: const ['200MB', '500MB', '1GB', '2GB', '3GB', '5GB'],
+                      options: const ['50MB', '200MB', '500MB', '1GB', '2GB', '3GB', '5GB', '6GB', '8GB', '10GB', '15GB', '20GB', '25GB', '30GB'],
                       selectedValue: _formatFileSize(settings.minFileSize),
                       onSelect: (value) => onMinFileSizeChanged(_parseFileSize(value)),
                     ),
@@ -77,8 +77,7 @@ class TorrentioQuerySettingsScreen extends StatelessWidget {
                     onPressed: () => _showSelectionDialog<String>(
                       context: context,
                       title: 'Select Maximum File Size',
-                      options: const ['1GB', '2GB', '3GB', '5GB', '6GB', '8GB', '10GB', 
-                                    '15GB', '20GB', '25GB', '30GB'],
+                      options: const ['2GB', '3GB', '5GB', '6GB', '8GB', '10GB', '12GB', '15GB', '20GB', '25GB', '30GB', '40GB', '50GB', '60GB', '100GB'],
                       selectedValue: _formatFileSize(settings.maxFileSize),
                       onSelect: (value) => onMaxFileSizeChanged(_parseFileSize(value)),
                     ),

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import './streams_provider.dart';
 import './torrentio_streams_provider.dart';
 import '../../settings/providers/stream_providers_settings_provider.dart';
+import '../../sync/services/database_service.dart';
 
 part 'combined_streams_provider.g.dart';
 
@@ -115,7 +116,13 @@ Future<Map<String, dynamic>> combinedStreams(
               'orion': 'torrentio_${media.id}',
             },
             'number': {
-              'season': media.seasonNumber,
+              'season': await _getSeasonNumber(media.seasonId),
+              'episode': media.episodeNumber,
+            },
+          } : null,
+          'show': !isMovie ? {
+            'meta': {
+              'title': await _getShowTitle(media.showId),
             },
           } : null,
           'streams': torrentioStreams,
@@ -218,7 +225,13 @@ Future<Map<String, dynamic>> combinedStreams(
               'orion': 'torrentio_${media.id}',
             },
             'number': {
-              'season': media.seasonNumber,
+              'season': await _getSeasonNumber(media.seasonId),
+              'episode': media.episodeNumber,
+            },
+          } : null,
+          'show': !isMovie ? {
+            'meta': {
+              'title': await _getShowTitle(media.showId),
             },
           } : null,
           'streams': torrentioStreams,
@@ -248,4 +261,16 @@ int _convertToBytes(String sizeString) {
   } else {
     return (value * 1024 * 1024).round();
   }
+}
+
+Future<int> _getSeasonNumber(int seasonId) async {
+  final db = DatabaseService();
+  final seasonDetails = await db.getSeasonDetails(seasonId);
+  return seasonDetails?['season_number'] ?? 0;
+}
+
+Future<String> _getShowTitle(int showId) async {
+  final db = DatabaseService();
+  final showDetails = await db.getTVShowDetails(showId);
+  return showDetails?['name'] ?? 'Unknown Show';
 } 

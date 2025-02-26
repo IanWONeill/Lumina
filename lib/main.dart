@@ -405,7 +405,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         bottom: 1,
         right: 20,
         child: SizedBox(
-          height: 28,
+          height: 36,
           child: FocusableActionDetector(
             focusNode: _settingsFocusNode,
             onFocusChange: (focused) {
@@ -436,7 +436,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return KeyEventResult.ignored;
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                 decoration: BoxDecoration(
                   color: _focusedIndex == _settingsIndex 
                       ? Colors.blue 
