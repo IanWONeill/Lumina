@@ -1,6 +1,11 @@
 # Changelog
 
-## [2/25/2025]
+## 1.0.4 [2/27/2025]
+
+### Added
+- Added an auto updater
+
+## 1.0.3 [2/25/2025]
 
 ### Changed
 - Added drama, history, crime, mystery as genre filters
@@ -12,7 +17,7 @@
 - Fixed wrong syntax for the sql query for collections
 - Fixed the duplicates that would show for some sollections
 
-## [2/19/2025]
+## 1.0.2 [2/19/2025]
 
 ### Added
 - Torrentio integration
@@ -36,7 +41,7 @@
   - Items are now removed after 5 syncs if not present in Simkl lists
   - Improves database accuracy with Simkl list changes
 
-## [2/11/2025]
+## 1.0.1 [2/11/2025]
 
 ### Added
 - Movie Collections functionality
@@ -50,7 +55,7 @@
 - Added new sort options in settings
   - Can now sort by title, release date, or date added
 
-## [2/10/2025]
+## 1.0.0 [2/10/2025]
 
 ### Added
 - Digital clock display
@@ -78,4 +83,3 @@
 - Added year to movie list view items
 - Removed full sync button from settings panel
 - Forced 280 dpi density for uniformity accross devices.
-

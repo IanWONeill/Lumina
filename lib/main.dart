@@ -13,93 +13,101 @@ import 'features/sync/widgets/sync_status_overlay.dart';
 import 'widgets/digital_clock.dart';
 import 'features/database/providers/database_provider.dart';
 import 'widgets/rss_ticker.dart';
+import 'features/upgrader/widgets/update_checker_widget.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 final movieCountProvider = StateNotifierProvider<CountNotifier, int>((ref) => CountNotifier());
 final tvShowCountProvider = StateNotifierProvider<CountNotifier, int>((ref) => CountNotifier());
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ProviderScope(
-      child: InitApp(),
+    const ProviderScope(
+      child: MyApp(),
     ),
   );
 }
 
+class MyApp extends ConsumerWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp(
+      title: 'Media Center',
+      theme: ThemeData.dark().copyWith(
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.blue,
+          secondary: Colors.blueAccent,
+        ),
+        scaffoldBackgroundColor: Colors.black87,
+        appBarTheme: const AppBarTheme(
+          toolbarHeight: 0,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          titleTextStyle: TextStyle(
+            height: 0,
+            fontSize: 0,
+          ),
+          toolbarTextStyle: TextStyle(
+            height: 0,
+            fontSize: 0,
+          ),
+          iconTheme: IconThemeData(
+            size: 0,
+            opacity: 0,
+          ),
+          actionsIconTheme: IconThemeData(
+            size: 0,
+            opacity: 0,
+          ),
+        ),
+      ),
+      home: const UpdateCheckerWidget(
+        child: InitApp(),
+      ),
+      builder: (context, child) => Stack(
+        children: [
+          if (child != null) child,
+          const SyncStatusOverlay(),
+        ],
+      ),
+      navigatorKey: navigatorKey,
+    );
+  }
+}
+
 class InitApp extends ConsumerWidget {
+  const InitApp({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(syncScheduleProvider);
     
-    return const MyApp();
-  }
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) => WillPopScope(
-        onWillPop: () async {
-          final shouldPop = await showDialog<bool>(
-            context: navigatorKey.currentContext ?? context,
-            builder: (context) => AlertDialog(
-              title: const Text('Exit Lumina?'),
-              content: const Text('Are you sure you want to exit?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Exit'),
-                ),
-              ],
-            ),
-          );
-          return shouldPop ?? false;
-        },
-        child: MaterialApp(
-          title: 'Media Center',
-          theme: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.blue,
-              secondary: Colors.blueAccent,
-            ),
-            scaffoldBackgroundColor: Colors.black87,
-            appBarTheme: const AppBarTheme(
-              toolbarHeight: 0,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              titleTextStyle: TextStyle(
-                height: 0,
-                fontSize: 0,
+    return WillPopScope(
+      onWillPop: () async {
+        final shouldPop = await showDialog<bool>(
+          context: navigatorKey.currentContext ?? context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exit Lumina?'),
+            content: const Text('Are you sure you want to exit?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
               ),
-              toolbarTextStyle: TextStyle(
-                height: 0,
-                fontSize: 0,
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Exit'),
               ),
-              iconTheme: IconThemeData(
-                size: 0,
-                opacity: 0,
-              ),
-              actionsIconTheme: IconThemeData(
-                size: 0,
-                opacity: 0,
-              ),
-            ),
-          ),
-          home: const HomeScreen(),
-          builder: (context, child) => Stack(
-            children: [
-              if (child != null) child,
-              const SyncStatusOverlay(),
             ],
           ),
-          navigatorKey: navigatorKey,
-        ),
-      );
+        );
+        return shouldPop ?? false;
+      },
+      child: const HomeScreen(),
+    );
+  }
 }
 
 final syncStatusProvider = StateProvider<String?>((ref) => null);

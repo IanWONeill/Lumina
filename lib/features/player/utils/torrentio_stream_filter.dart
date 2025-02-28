@@ -13,7 +13,6 @@ class TorrentioStreamFilter {
       } else if (stream.fileSize.endsWith(' MB')) {
         sizeInGB = double.parse(stream.fileSize.replaceAll(' MB', '')) / 1024;
       } else {
-        // Unknown format - don't filter by size
         return settings.hideHdr ? !stream.isHdr : true;
       }
       

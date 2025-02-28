@@ -1,33 +1,93 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
 }
 
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
+def pubspecFile = new File(project.projectDir.parentFile.parentFile, 'pubspec.yaml')
+def versionJsonFile = new File(project.projectDir.parentFile.parentFile, 'version.json')
+def changelogFile = new File(project.projectDir.parentFile.parentFile, 'CHANGELOG.md')
 
-if (!keystorePropertiesFile.exists()) {
-    throw new GradleException("""
-        ERROR: Keystore properties file not found!
-
-        To build the app in release mode, you must provide a 'key.properties' file.
-        Place the file in the following location:
-            ${keystorePropertiesFile.getAbsolutePath()}
-
-        The file should contain the following properties:
-            storePassword=your_store_password
-            keyPassword=your_key_password
-            keyAlias=your_key_alias
-            storeFile=../path/to/your/keystore.jks
-
-        Replace the placeholders with your actual credentials.
-    """.stripIndent())
+task updateVersionJson {
+    doLast {
+        def pubspecContent = pubspecFile.text
+        def versionMatch = pubspecContent =~ /version:\s*([0-9]+\.[0-9]+\.[0-9]+)/
+        
+        if (!versionMatch.find()) {
+            throw new GradleException("Could not find version in pubspec.yaml")
+        }
+        
+        def version = versionMatch.group(1)
+        def jsonContent = versionJsonFile.text
+        def jsonSlurper = new groovy.json.JsonSlurper()
+        def json = jsonSlurper.parseText(jsonContent)
+        
+        json.version = version
+        json.url = "https://github.com/Spark-NV/Lumina/releases/download/v${version}/Lumina.apk"
+        
+        if (changelogFile.exists()) {
+            def changelog = changelogFile.text
+            def versionSection = changelog =~ /(?s)##\s*${version}\s*\[[^\]]+\]\s*\n(.*?)(?=\n##|$)/
+            
+            if (versionSection.find()) {
+                def notes = versionSection.group(1).trim()
+                println "Found version section:\n$notes"
+                
+                def processedNotes = new StringBuilder()
+                def sections = notes.split(/(?=###\s+\w+)/)
+                
+                sections.each { section ->
+                    println "Processing section:\n$section"
+                    def sectionMatch = section =~ /(?s)###\s+(\w+)\s*\n(.*?)(?=\n###|$)/
+                    if (sectionMatch.find()) {
+                        def sectionTitle = sectionMatch.group(1)
+                        def sectionContent = sectionMatch.group(2)
+                        
+                        println "Section title: $sectionTitle"
+                        println "Section content:\n$sectionContent"
+                        
+                        processedNotes.append("${sectionTitle}:\\n")
+                        
+                        def lastLine = true
+                        def contentLines = sectionContent.trim().split('\n')
+                        contentLines.eachWithIndex { line, index ->
+                            def trimmedLine = line.trim()
+                            if (trimmedLine && trimmedLine.startsWith('-')) {
+                                processedNotes.append(" ${trimmedLine}")
+                                if (index < contentLines.size() - 1) {
+                                    processedNotes.append("\\n")
+                                }
+                            } else if (trimmedLine && trimmedLine.startsWith('  -')) {
+                                processedNotes.append("   ${trimmedLine.substring(2)}")
+                                if (index < contentLines.size() - 1) {
+                                    processedNotes.append("\\n")
+                                }
+                            }
+                        }
+                        
+                        if (section != sections.last()) {
+                            processedNotes.append("\\n\\n")
+                        }
+                    }
+                }
+                
+                def finalNotes = processedNotes.toString().trim()
+                println "Final processed notes:\n$finalNotes"
+                json.notes = finalNotes
+            } else {
+                println "Warning: Could not find notes for version $version in CHANGELOG.md"
+                json.notes = "What's new in version $version\\n - No detailed notes available"
+            }
+        }
+        
+        def jsonBuilder = new groovy.json.JsonBuilder(json)
+        def prettyJson = groovy.json.JsonOutput.prettyPrint(jsonBuilder.toString())
+        prettyJson = prettyJson.replaceAll('\\\\n', '\\n')
+        versionJsonFile.text = prettyJson
+        
+        println "Updated version.json with version ${version} and changelog notes"
+    }
 }
-
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-println "Keystore Path: " + keystoreProperties['storeFile']
 
 android {
     namespace = "com.example.lumina"
@@ -43,7 +103,7 @@ android {
         jvmTarget = JavaVersion.VERSION_1_8
     }
 
-   aaptOptions {  
+    aaptOptions {  
         cruncherEnabled = false  
     }
     
@@ -58,11 +118,38 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        release {
+            def keystoreProperties = new Properties()
+            def keystorePropertiesFile = rootProject.file('key.properties')
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                println "Release build: Loading keystore from " + keystoreProperties['storeFile']
+
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            } else {
+                println "Warning: key.properties not found, using debug signing"
+                storeFile = null
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+            if (project.gradle.startParameter.taskNames.any { it.contains('Release') || it.contains('release') }) {
+                preBuild.dependsOn updateVersionJson
+            }
+        }
+        debug {
+            signingConfig signingConfigs.debug
         }
     }
 }
