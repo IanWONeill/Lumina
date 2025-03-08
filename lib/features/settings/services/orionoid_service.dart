@@ -169,7 +169,7 @@ class OrionoidService {
           }
         }
         
-        throw Exception('Could not find specific episode S${seasonNumber}E${episodeNumber} in pack');
+        throw Exception('Could not find specific episode S${seasonNumber}E$episodeNumber in pack');
       }
       
       final streamUrl = files[0]['original']['link'] as String?;

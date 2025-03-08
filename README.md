@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platforms](https://img.shields.io/badge/Platforms-Android%20|%20iOS%20|%20Web-brightgreen.svg)](https://flutter.dev/multi-platform/)
 
-A Flutter-based media streaming application that fetches streams from Premiumize using Orionoid and plays them. The UI is modeled after Kodi skins' list views, with potential for additional view options like poster view.
+A Flutter-based media streaming application that fetches streams from Premiumize using Orionoid or Torrentio and plays them. The UI is modeled after Kodi skins' list views, with potential for additional view options like poster view.
 
 
 ## ✨ What Makes Lumina Different?
@@ -13,26 +13,24 @@ Unlike other streaming apps such as Stremio or Syncler, Lumina is designed with 
 
 ✅ Fully Local Metadata Storage: Unlike apps that rely on cloud services for metadata, Lumina stores all movie and show metadata locally in a folder on your device (Player_Files), making it easy to back up and restore without needing external servers.
 
-🔐 No External Add-ons or Scrapers: Stremio and Syncler rely on third-party add-ons and scrapers to fetch sources, which can be inconsistent or require additional setup. Lumina fetches direct links via Orionoid.
-
-🔄 Simkl Integration for Watchlist Management: Unlike Stremio, Lumina uses Simkl for managing your library, with a straightforward syncing process that pulls your planned movies and shows into the app automatically. This makes it so your library it customized to you. No more having a homescreen with 90% of stuff that isnt interesting to you.
+🔄 Simkl and Trakt Integration for Watchlist Management: Unlike Stremio, Lumina uses Simkl and Trakt for managing your library, with a straightforward syncing process that pulls your movies and shows into the app automatically. This makes it so your library is customized to you. No more having a homescreen with 90% of stuff that isnt interesting to you.
 
 🎥 Custom JustPlayer Integration: Lumina integrates with a modified version of JustPlayer, allowing for seamless tracking of playback progress, this modified version of justplayer is made to be the absolute simplest it could possibly be, good for those that are not tech savy.
 
 🎮 Built with flutter/dart: Being wrote in flutter/dart allows this app to be modular in terms of what devices it will run on. other apps are generally only specific for 1 platform such as pc or android, Lumina will run on windows,android,ios,and even as a website/html. 
-*some modifications will need to be made for these other platforms due to me hardcoding some android paths. this change would be very simple if someone was to do it.*
+*some modifications will need to be made for these other platforms due to me hardcoding some android paths and Android intents. This change would be very simple if someone was to do it.*
 
 
 ## ✨ Current Features
 ### 📺 Media Library Management
 
-    Fetches a Simkl watchlist and retrieves metadata from TMDB.
+    Fetches a Simkl watchlist or Trakt list and retrieves metadata from TMDB/TVDB.
     Stores metadata in a folder named Player_Files on the device's internal storage for easy backup.
     Note: Requires storage permissions for metadata management.
 
 ### 🔗 Stream Fetching & Playback
 
-    Authenticates using Orionoid's API to fetch streaming links.
+    Authenticates using Orionoid's API or Torrentio to fetch streaming links.
     Sends links to JustPlayer for playback on your device.
 
 ### 🎥  User Interface
@@ -43,11 +41,11 @@ Unlike other streaming apps such as Stremio or Syncler, Lumina is designed with 
 
 ### 🔍 Search Functionality
 
-    Search your library for movies or TV shows.
+    Search your library for movies or TV shows with keyboard input or voice input.
 
 ### ⚙️ Settings
 
-    Customize Orionoid search results for better more tailored files for specific qualities or languages.
+    Customize Orionoid or Torrentio search results for better more tailored files for specific qualities or languages.
 
 ### 📱 Supported Platforms
 
@@ -65,20 +63,10 @@ Note: The app currently has hardcoded paths for Android. Modifications are neede
 ### 🛠️ Building the Project
 
     Set up Android Studio and Flutter.
-    Run the following commands:
+    Run the build.ps1 file and choose either the release build or debug build.
+	Note: building a release build requires creating java signing keys.
 
-# Generate required files
-flutter pub run build_runner build --delete-conflicting-outputs
-
-# Build the APK
-| Platform | Command |
-|----------|---------|
-| Android  | `flutter build apk --release` |
-| iOS      | `flutter build ios --release` |
-| Web      | `flutter build web --release` |
-| Note: | If you want to build a debug version remove - -release |
-
-🚀 Setup Instructions
+### 🚀 Setup Instructions
 
     Grant the app storage permissions.
 
@@ -86,26 +74,28 @@ flutter pub run build_runner build --delete-conflicting-outputs
 	NOTE: this app expects specific intents that were added to my custom justplayer. these intents are for tracking play progress thus is needed: https://github.com/Spark-NV/Player
 
     Add your API keys to the Debrid_Player/api_keys.txt file:
-    Copy
 
     tmdb_api_key = your_key_here
     orion_app_key = your_key_here
     simkl_api_key = your_key_here
+	trakt_client_id = your_key_here
+	premiumize_api_key = your_key_here
+	tvdb_api_key = your_key_here
 
-    Build your Simkl library:
+    Build your Simkl/Trakt library:
 
-        Add movies/shows to your "Plan to Watch" list.
+        Add movies/shows to your "Plan to Watch" list or "Completed" List, or if using trakt to a custom list.
 
-        Optionally, import existing lists from something like trakt.
-		NOTE: I might incorporate trakt in the future but dont count on it.
 
-    Open the app and authorize Simkl and Orionoid to get the tokens so the app can interact with the 2 services.
+    Open the app and authorize Simkl and Orionoid to get the tokens so the app can interact with the 2 services if you want to use them.
+	
+	Set your trakt list id and username if you are using trakt.
 
-    Use the "Sync" button to fetch new content from your Simkl watchlist.
+    Use the "Sync" button to fetch new content from your selected list.
 
-    So the process for adding movies or shows will be you use simkl and find any movies or shows you want and add them to your plan to watch list. then in Lumina you use the sync button to have it find any new movies or tvshows you added.
+    So the process for adding movies or shows will be you use simkl/trakt and find any movies or shows you want and add them to your list. then in Lumina you use the sync button to have it find any new movies or tvshows you added. In the settings you can set it to auto sync every day at a certain time so new episodes or new movies get added automatically.
 
-    You must link your premiumize account and orionoid account in the user panel on orionoids website.
+    Note: You must link your premiumize account and orionoid account in the user panel on orionoids website.
 
 ### 🤝 Contributing
 
@@ -121,20 +111,6 @@ Contributions are welcome! If you'd like to improve Lumina, here are some ideas:
 
     Add other video player options. Other options would need ways of tracking play progress.
 
-### 📸 Screenshots
-
-Note: These screenshots were taken using the Android Studio tablet emulator, so scaling may differ on actual Android TV devices.
-
-![Alt text](Screenshots/Homescreen.png)
-![Alt text](Screenshots/Movies_screen.png)
-![Alt text](Screenshots/Pre_Play_Screen.png)
-![Alt text](Screenshots/TVShows_Screen.png)
-![Alt text](Screenshots/Episodes_Screen.png)
-
-### As stated it looks different on an AndroidTV here is a pic of it running on mine:
-
-https://i.imgur.com/2YfomT6.jpeg
-
 
 ### 📜 License
 
@@ -143,8 +119,9 @@ Distributed under the MIT License. See LICENSE for more information.
 
     Flutter Team for the amazing framework.
     Orionoid for their comprehensive media API.
-    Simkl for watchlist management.
-    TMDB for metadata.
+    Torrentio for their Amazing Scraper API.
+    Simkl and Trakt for list management.
+    TMDB and TVDB for metadata.
     moneytoo for his JustPlayer
 
 ### 📌 Suggestions for improvement are welcome

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/genre_results_provider.dart';
-import 'dart:io';
 
 class GenreMetadataPanel extends HookConsumerWidget {
   const GenreMetadataPanel({super.key});

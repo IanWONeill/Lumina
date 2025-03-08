@@ -5,7 +5,6 @@ import 'dart:io';
 import '../providers/details_cast_provider.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import '../providers/watched_status_provider.dart';
-import '../providers/streams_provider.dart';
 import './stream_selection_screen.dart';
 import 'dart:convert';
 import 'dart:developer' as developer;

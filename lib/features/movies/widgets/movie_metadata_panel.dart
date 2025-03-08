@@ -3,7 +3,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/movies_provider.dart';
 import '../providers/cast_provider.dart';
 import 'dart:io';
-import '../../sync/services/database_service.dart';
 
 class MovieMetadataPanel extends HookConsumerWidget {
   const MovieMetadataPanel({super.key});

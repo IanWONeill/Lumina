@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import '../features/settings/providers/rss_settings_provider.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:math';
 
 final rssFeedDataProvider = StateNotifierProvider<RSSFeedDataNotifier, Map<String, List<String>>>((ref) {
   final notifier = RSSFeedDataNotifier(ref);

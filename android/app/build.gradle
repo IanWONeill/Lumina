@@ -8,16 +8,79 @@ def pubspecFile = new File(project.projectDir.parentFile.parentFile, 'pubspec.ya
 def versionJsonFile = new File(project.projectDir.parentFile.parentFile, 'version.json')
 def changelogFile = new File(project.projectDir.parentFile.parentFile, 'CHANGELOG.md')
 
+// Set to true to always use the latest version from changelog instead of pubspec
+def useLatestChangelogVersion = true
+
+// Control whether to update pubspec.yaml with the latest version from changelog
+def updatePubspecWithLatestVersion = true
+
 task updateVersionJson {
     doLast {
-        def pubspecContent = pubspecFile.text
-        def versionMatch = pubspecContent =~ /version:\s*([0-9]+\.[0-9]+\.[0-9]+)/
+        def version
+        def shouldUpdatePubspec = false
         
-        if (!versionMatch.find()) {
+        def pubspecContent = pubspecFile.text
+        def pubspecVersionMatch = pubspecContent =~ /version:\s*([0-9]+\.[0-9]+\.[0-9]+)/
+        
+        if (!pubspecVersionMatch.find()) {
             throw new GradleException("Could not find version in pubspec.yaml")
         }
         
-        def version = versionMatch.group(1)
+        def pubspecVersion = pubspecVersionMatch.group(1)
+        println "Version from pubspec.yaml: $pubspecVersion"
+        
+        if (useLatestChangelogVersion && changelogFile.exists()) {
+            def changelog = changelogFile.text
+            def latestVersionMatch = changelog =~ /##\s+([0-9]+\.[0-9]+\.[0-9]+)\s+\[[^\]]+\]/
+            
+            if (latestVersionMatch.find()) {
+                def latestVersion = latestVersionMatch.group(1)
+                println "Latest version from CHANGELOG.md: $latestVersion"
+                
+                def pubspecParts = pubspecVersion.tokenize('.')
+                def latestParts = latestVersion.tokenize('.')
+                
+                def useLatest = false
+                for (int i = 0; i < Math.min(pubspecParts.size(), latestParts.size()); i++) {
+                    int pubPart = pubspecParts[i].toInteger()
+                    int latestPart = latestParts[i].toInteger()
+                    
+                    if (latestPart > pubPart) {
+                        useLatest = true
+                        break
+                    } else if (pubPart > latestPart) {
+                        break
+                    }
+                }
+                
+                if (useLatest) {
+                    version = latestVersion
+                    println "Using latest version from changelog: $version (newer than pubspec version)"
+                    
+                    if (updatePubspecWithLatestVersion) {
+                        shouldUpdatePubspec = true
+                    }
+                } else {
+                    version = pubspecVersion
+                    println "Using version from pubspec.yaml: $version (newer or equal to changelog version)"
+                }
+            } else {
+                version = pubspecVersion
+                println "No version found in changelog, using pubspec version: $version"
+            }
+        } else {
+            version = pubspecVersion
+            println "Using version from pubspec.yaml: $version"
+        }
+        
+        // Update pubspec.yaml if needed
+        if (shouldUpdatePubspec) {
+            println "Updating pubspec.yaml with version $version from changelog"
+            def updatedPubspecContent = pubspecContent.replaceFirst(/version:\s*[0-9]+\.[0-9]+\.[0-9]+/, "version: $version")
+            pubspecFile.text = updatedPubspecContent
+            println "Successfully updated pubspec.yaml with version $version"
+        }
+        
         def jsonContent = versionJsonFile.text
         def jsonSlurper = new groovy.json.JsonSlurper()
         def json = jsonSlurper.parseText(jsonContent)
@@ -27,29 +90,30 @@ task updateVersionJson {
         
         if (changelogFile.exists()) {
             def changelog = changelogFile.text
-            def versionSection = changelog =~ /(?s)##\s*${version}\s*\[[^\]]+\]\s*\n(.*?)(?=\n##|$)/
+            def versionPattern = "## ${version} \\[[^\\]]+\\]"
+            def versionSectionPattern = "(?s)${versionPattern}\\s*\\n(.*?)(?=\\n##|\\Z)"
+            
+            def versionSection = changelog =~ versionSectionPattern
             
             if (versionSection.find()) {
                 def notes = versionSection.group(1).trim()
-                println "Found version section:\n$notes"
+                println "Found version section for ${version}:\n$notes"
                 
                 def processedNotes = new StringBuilder()
                 def sections = notes.split(/(?=###\s+\w+)/)
                 
                 sections.each { section ->
-                    println "Processing section:\n$section"
                     def sectionMatch = section =~ /(?s)###\s+(\w+)\s*\n(.*?)(?=\n###|$)/
                     if (sectionMatch.find()) {
                         def sectionTitle = sectionMatch.group(1)
-                        def sectionContent = sectionMatch.group(2)
+                        def sectionContent = sectionMatch.group(2).trim()
                         
                         println "Section title: $sectionTitle"
                         println "Section content:\n$sectionContent"
                         
                         processedNotes.append("${sectionTitle}:\\n")
                         
-                        def lastLine = true
-                        def contentLines = sectionContent.trim().split('\n')
+                        def contentLines = sectionContent.split('\n')
                         contentLines.eachWithIndex { line, index ->
                             def trimmedLine = line.trim()
                             if (trimmedLine && trimmedLine.startsWith('-')) {
@@ -58,7 +122,7 @@ task updateVersionJson {
                                     processedNotes.append("\\n")
                                 }
                             } else if (trimmedLine && trimmedLine.startsWith('  -')) {
-                                processedNotes.append("   ${trimmedLine.substring(2)}")
+                                processedNotes.append("   ${trimmedLine.substring(2).trim()}")
                                 if (index < contentLines.size() - 1) {
                                     processedNotes.append("\\n")
                                 }
@@ -72,7 +136,7 @@ task updateVersionJson {
                 }
                 
                 def finalNotes = processedNotes.toString().trim()
-                println "Final processed notes:\n$finalNotes"
+                println "Final processed notes for version ${version}:\n$finalNotes"
                 json.notes = finalNotes
             } else {
                 println "Warning: Could not find notes for version $version in CHANGELOG.md"
@@ -121,17 +185,23 @@ android {
     signingConfigs {
         release {
             def keystoreProperties = new Properties()
-            def keystorePropertiesFile = rootProject.file('key.properties')
+            def externalKeystoreDir = new File('E:/Android-Release-Keys')
+            def keystorePropertiesFile = new File(externalKeystoreDir, 'key.properties')
             if (keystorePropertiesFile.exists()) {
                 keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-                println "Release build: Loading keystore from " + keystoreProperties['storeFile']
-
+                println "Release build: Loading keystore from external directory: " + keystoreProperties['storeFile']
+                
+                def keyStoreFile = new File(keystoreProperties['storeFile'])
+                if (!keyStoreFile.isAbsolute()) {
+                    keyStoreFile = new File(externalKeystoreDir, keystoreProperties['storeFile'])
+                }
+                
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
-                storeFile file(keystoreProperties['storeFile'])
+                storeFile keyStoreFile
                 storePassword keystoreProperties['storePassword']
             } else {
-                println "Warning: key.properties not found, using debug signing"
+                println "Warning: key.properties not found at E:/Android-Release-Keys, using debug signing"
                 storeFile = null
             }
         }

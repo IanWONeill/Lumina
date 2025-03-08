@@ -31,7 +31,7 @@ class Streams extends _$Streams {
       }
     );
 
-    if (token == null || settings == null) {
+    if (token == null) {
       throw Exception('Orionoid token or settings not found');
     }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/orion_settings_provider.dart';
 import './orion_query_settings_screen.dart';
@@ -27,7 +26,7 @@ class OrionSettingsSection extends ConsumerWidget {
             child: Builder(
               builder: (context) {
                 final focused = Focus.of(context).hasFocus;
-                return Container(
+                return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.push(
@@ -95,7 +94,7 @@ class OrionSettingsSection extends ConsumerWidget {
             child: Builder(
               builder: (context) {
                 final focused = Focus.of(context).hasFocus;
-                return Container(
+                return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.push(

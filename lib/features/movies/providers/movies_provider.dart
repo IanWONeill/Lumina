@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../database/providers/database_provider.dart';
 import '../../settings/providers/sort_settings_provider.dart';
@@ -59,6 +58,18 @@ class Movies extends _$Movies {
   Future<void> updateProgress(int tmdbId, int progress, int percentage) async {
     final db = ref.read(databaseServiceProvider);
     await db.updateMovieProgress(tmdbId, progress, percentage);
+  }
+
+  Future<void> addMovie(Map<String, dynamic> movieData) async {
+    final db = ref.read(databaseServiceProvider);
+    await db.insertMovie(movieData);
+    ref.invalidateSelf();
+  }
+
+  Future<void> updateMovie(int id, Map<String, dynamic> data) async {
+    final db = ref.read(databaseServiceProvider);
+    await db.updateMovie(id, data);
+    ref.invalidateSelf();
   }
 }
 

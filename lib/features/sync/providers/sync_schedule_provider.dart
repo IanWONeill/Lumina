@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../main.dart';
 import '../../movies/providers/movies_provider.dart';
 import '../../tv_shows/providers/tv_shows_provider.dart';
 import '../../settings/providers/auto_sync_preference_provider.dart';
@@ -72,7 +70,7 @@ class SyncScheduleService {
     final currentState = _ref.read(syncProvider);
     if (currentState is AsyncLoading) return;
 
-    await _ref.read(syncProvider.notifier).startSync();
+    await _ref.read(syncProvider.notifier).sync();
     await _ref.read(lastSyncTimeProvider.notifier).setLastSyncTime(DateTime.now());
 
     _ref.invalidate(moviesProvider);

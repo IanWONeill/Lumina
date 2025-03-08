@@ -1,5 +1,4 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'dart:developer' as developer;
 import '../services/torrentio_streams_service.dart';
 import '../utils/torrentio_stream_filter.dart';
 import '../models/stream_info.dart';

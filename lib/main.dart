@@ -236,7 +236,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         SizedBox(
                           width: 120,
                           child: Text(
-                            syncStatus.split(':')[0] + ':',
+                            '${syncStatus.split(':')[0]}:',
                             style: TextStyle(
                               color: Colors.blue.withOpacity(0.9),
                               fontSize: 14,
@@ -324,7 +324,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       icon: Icons.sync,
       label: 'Sync',
       destination: const SizedBox.shrink(),
-      onSelect: () => ref.read(syncProvider.notifier).startSync(),
+      onSelect: () => ref.read(syncProvider.notifier).sync(),
     ),
     const MenuItem(
       icon: Icons.settings,

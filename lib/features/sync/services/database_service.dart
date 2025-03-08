@@ -44,6 +44,8 @@ class DatabaseService {
           CREATE TABLE tv_shows (
             tmdb_id INTEGER PRIMARY KEY,
             imdb_id TEXT,
+            tvdb_id INTEGER,
+            is_anime INTEGER,
             original_name TEXT,
             overview TEXT,
             first_air_date TEXT,
@@ -377,6 +379,8 @@ class DatabaseService {
           {
             'tmdb_id': show['tmdb_id'],
             'imdb_id': show['imdb_id'],
+            'tvdb_id': show['tvdb_id'],
+            'is_anime': show['is_anime'],
             'original_name': show['original_name'],
             'overview': show['overview'],
             'first_air_date': show['first_air_date'],
@@ -1536,5 +1540,45 @@ class DatabaseService {
     if (_onTVShowAdded != null) {
       _onTVShowAdded!();
     }
+  }
+
+  Future<Map<String, dynamic>?> getMovieByTmdbId(int tmdbId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'movies',
+      where: 'tmdb_id = ?',
+      whereArgs: [tmdbId],
+    );
+    
+    if (maps.isEmpty) {
+      return null;
+    }
+    
+    return maps.first;
+  }
+
+  Future<Map<String, dynamic>?> getTVShowByTmdbId(int tmdbId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'tv_shows',
+      where: 'tmdb_id = ?',
+      whereArgs: [tmdbId],
+    );
+    
+    if (maps.isEmpty) {
+      return null;
+    }
+    
+    return maps.first;
+  }
+
+  Future<void> updateMovie(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    await db.update(
+      'movies',
+      data,
+      where: 'tmdb_id = ?',
+      whereArgs: [id],
+    );
   }
 }

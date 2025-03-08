@@ -12,6 +12,18 @@ class TVShows extends _$TVShows {
     final shows = await db.getAllTVShows();
     return shows.map((map) => TVShow.fromMap(map)).toList();
   }
+
+  Future<void> addTVShow(Map<String, dynamic> showData) async {
+    final db = DatabaseService();
+    await db.insertTVShow(showData);
+    ref.invalidateSelf();
+  }
+
+  Future<void> updateTVShow(int id, Map<String, dynamic> data) async {
+    final db = DatabaseService();
+    await db.updateTVShowDetails(data);
+    ref.invalidateSelf();
+  }
 }
 
 @Riverpod(keepAlive: true)

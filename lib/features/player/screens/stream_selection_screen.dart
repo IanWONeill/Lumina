@@ -416,7 +416,7 @@ class StreamSelectionScreen extends ConsumerWidget {
         );
       }
       
-      if (streamUrl == null || streamUrl.isEmpty) {
+      if (streamUrl.isEmpty) {
         throw Exception('Failed to resolve stream URL');
       }
 

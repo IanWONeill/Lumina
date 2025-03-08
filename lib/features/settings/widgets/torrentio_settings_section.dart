@@ -31,7 +31,7 @@ class TorrentioSettingsSection extends ConsumerWidget {
       child: Builder(
         builder: (context) {
           final focused = Focus.of(context).hasFocus;
-          return Container(
+          return SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: onPressed,
@@ -78,7 +78,7 @@ class TorrentioSettingsSection extends ConsumerWidget {
             child: Builder(
               builder: (context) {
                 final focused = Focus.of(context).hasFocus;
-                return Container(
+                return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.push(
@@ -133,7 +133,7 @@ class TorrentioSettingsSection extends ConsumerWidget {
             child: Builder(
               builder: (context) {
                 final focused = Focus.of(context).hasFocus;
-                return Container(
+                return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.push(

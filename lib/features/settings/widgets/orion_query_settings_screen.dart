@@ -53,7 +53,7 @@ class OrionQuerySettingsScreen extends StatelessWidget {
       child: Builder(
         builder: (context) {
           final focused = Focus.of(context).hasFocus;
-          return Container(
+          return SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: onPressed,

@@ -2,19 +2,28 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/database_service.dart';
 import '../services/tmdb_service.dart';
+import '../services/tvdb_service.dart';
 import '../services/simkl_service.dart';
+import '../services/trakt_service.dart';
 import '../../settings/providers/settings_provider.dart';
+import '../../settings/providers/sync_source_provider.dart';
+import '../../settings/providers/last_sync_time_provider.dart';
 import '../../settings/services/api_keys_service.dart';
-import '../../movies/providers/movies_provider.dart';
-import '../../tv_shows/providers/tv_shows_provider.dart';
 import '../../../main.dart';
 
 final syncProvider = AsyncNotifierProvider<SyncNotifier, void>(SyncNotifier.new);
 
 class SyncNotifier extends AsyncNotifier<void> {
   late final DatabaseService _dbService;
-  late final TMDBService _tmdbService;
-  late final SimklSyncService _simklService;
+  late TMDBService _tmdbService;
+  late final SimklSyncService? _simklService;
+  late final TraktSyncService? _traktService;
+  late final SyncSource _syncSource;
+  late final TVDBService _tvdbService;
+
+  void _updateTMDBService(String apiKey, SimklSyncService? simklService) {
+    _tmdbService = TMDBService(apiKey, _dbService, simklService);
+  }
 
   @override
   Future<void> build() async {
@@ -24,51 +33,125 @@ class SyncNotifier extends AsyncNotifier<void> {
     if (apiKeys['tmdb'] == null) {
       throw Exception('TMDB API key not found');
     }
-    if (apiKeys['simkl'] == null) {
-      throw Exception('SIMKL API key not found');
+    if (apiKeys['tvdb'] == null) {
+      throw Exception('TVDB API key not found');
     }
 
-    final simklToken = await ref.read(simklAuthProvider.future);
-    if (simklToken == null) {
-      throw Exception('SIMKL auth token not found');
-    }
+    _syncSource = await ref.read(syncSourcePreferenceProvider.future);
+    
+    if (_syncSource == SyncSource.simkl) {
+      if (apiKeys['simkl'] == null) {
+        throw Exception('SIMKL API key not found');
+      }
 
-    _simklService = SimklSyncService(simklToken, apiKeys['simkl']!, ref);
-    _tmdbService = TMDBService(apiKeys['tmdb']!, _dbService, _simklService);
+      final simklToken = await ref.read(simklAuthProvider.future);
+      if (simklToken == null) {
+        throw Exception('SIMKL auth token not found');
+      }
+
+      _simklService = SimklSyncService(simklToken, apiKeys['simkl']!, ref);
+      _traktService = null;
+    } else {
+      if (apiKeys['trakt'] == null) {
+        throw Exception('Trakt client ID not found');
+      }
+
+      _traktService = TraktSyncService(apiKeys['trakt']!, ref);
+      _simklService = null;
+    }
+    
+    _tmdbService = TMDBService(apiKeys['tmdb']!, _dbService, _syncSource == SyncSource.simkl ? _simklService : null);
+    _tvdbService = TVDBService(apiKeys['tvdb']!, _dbService);
   }
 
-  Future<void> startSync() async {
+  Future<void> sync() async {
+    if (state is AsyncLoading) return;
+    
     state = const AsyncLoading();
+    ref.read(syncStatusProvider.notifier).state = 'Starting sync...';
     
     try {
-      ref.read(syncStatusProvider.notifier).state = 'Starting sync process...';
-      developer.log('Starting Sync Process', name: 'SyncNotifier');
+      final apiKeys = await ApiKeysService.readApiKeys();
+      if (apiKeys['tmdb'] == null) {
+        throw Exception('TMDB API key not found');
+      }
       
-      await _tmdbService.syncWithSimkl();
+      final syncSource = await ref.read(syncSourcePreferenceProvider.future);
       
-      await _syncMovies(_simklService);
-      await _syncTVShows(_simklService);
+      if (syncSource == SyncSource.simkl) {
+        if (apiKeys['simkl'] == null) {
+          throw Exception('SIMKL API key not found');
+        }
+        
+        final simklToken = await ref.read(simklAuthProvider.future);
+        if (simklToken == null) {
+          throw Exception('SIMKL auth token not found');
+        }
+        
+        final SimklSyncService simklService;
+        if (_syncSource == SyncSource.simkl && _simklService != null) {
+          simklService = _simklService;
+        } else {
+          simklService = SimklSyncService(simklToken, apiKeys['simkl']!, ref);
+        }
+        
+        if (_syncSource != SyncSource.simkl) {
+          _updateTMDBService(apiKeys['tmdb']!, simklService);
+        }
+        
+        ref.read(syncStatusProvider.notifier).state = 'Syncing from SIMKL...';
+        
+        await _syncMoviesFromSimkl(simklService);
+        await _syncTVShowsFromSimkl(simklService);
+      } else if (syncSource == SyncSource.trakt) {
+        if (apiKeys['trakt'] == null) {
+          throw Exception('Trakt API key not found');
+        }
+        
+        final TraktSyncService traktService;
+        if (_syncSource == SyncSource.trakt && _traktService != null) {
+          traktService = _traktService;
+        } else {
+          traktService = TraktSyncService(apiKeys['trakt']!, ref);
+        }
+        
+        if (_syncSource != SyncSource.trakt) {
+          _updateTMDBService(apiKeys['tmdb']!, null);
+        }
+        
+        ref.read(syncStatusProvider.notifier).state = 'Syncing from Trakt...';
+        
+        await traktService.fetchAllItems();
+        
+        await _syncMoviesFromTrakt(traktService);
+        await _syncTVShowsFromTrakt(traktService);
+        
+        traktService.clearCache();
+      }
       
-      developer.log('Sync Complete', name: 'SyncNotifier');
-      ref.invalidate(moviesProvider);
-      ref.invalidate(tVShowsProvider);
+      if (syncSource == SyncSource.simkl) {
+        await _tmdbService.syncWithSimkl();
+      }
       
-      ref.read(syncStatusProvider.notifier).state = null;
+      final now = DateTime.now();
+      await ref.read(lastSyncTimeProvider.notifier).setLastSyncTime(now);
+      
+      ref.read(syncStatusProvider.notifier).state = 'Sync completed';
       state = const AsyncData(null);
     } catch (e, st) {
+      ref.read(syncStatusProvider.notifier).state = 'Sync failed: $e';
       developer.log(
-        'Sync Error',
+        'Sync failed',
         name: 'SyncNotifier',
         error: e,
         stackTrace: st,
         level: 1000,
       );
       state = AsyncError(e, st);
-      ref.read(syncStatusProvider.notifier).state = null;
     }
   }
 
-  Future<void> _syncMovies(SimklSyncService simklService) async {
+  Future<void> _syncMoviesFromSimkl(SimklSyncService simklService) async {
     final existingMovieIds = Set<int>.from(await _dbService.getAllMovieIds());
     developer.log(
       'Loading existing movies',
@@ -142,7 +225,7 @@ class SyncNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> _syncTVShows(SimklSyncService simklService) async {
+  Future<void> _syncTVShowsFromSimkl(SimklSyncService simklService) async {
     developer.log('Processing TV Shows', name: 'SyncNotifier');
     
     ref.read(syncStatusProvider.notifier).state = 'Loading TV show database...';
@@ -197,7 +280,7 @@ class SyncNotifier extends AsyncNotifier<void> {
           );
           
           try {
-            final tmdbData = await _tmdbService.getTVShowDetails(tmdbId);
+            final tmdbData = await _tmdbService.fetchTVShowDetails(tmdbId);
             tmdbData['total_episodes_count'] = simklEpisodeCount;
             tmdbData['imdb_id'] = imdbId;
             
@@ -342,7 +425,7 @@ class SyncNotifier extends AsyncNotifier<void> {
               },
             );
             
-            final tmdbData = await _tmdbService.getTVShowDetails(tmdbId);
+            final tmdbData = await _tmdbService.fetchTVShowDetails(tmdbId);
             tmdbData['total_episodes_count'] = simklEpisodeCount;
             tmdbData['imdb_id'] = imdbId;
             await _dbService.updateTVShowDetails(tmdbData);
@@ -450,6 +533,311 @@ class SyncNotifier extends AsyncNotifier<void> {
           level: 1000,
         );
       }
+    }
+  }
+
+  Future<void> _syncMoviesFromTrakt(TraktSyncService traktService) async {
+    ref.read(syncStatusProvider.notifier).state = 'Fetching movies from Trakt...';
+    
+    try {
+      final movies = await traktService.getCompletedMovies();
+      
+      ref.read(syncStatusProvider.notifier).state = 
+          'Processing ${movies.length} movies from Trakt...';
+      
+      final existingMovieIds = Set<int>.from(await _dbService.getAllMovieIds());
+      developer.log(
+        'Loading existing movies',
+        name: 'SyncNotifier',
+        error: {'count': existingMovieIds.length},
+      );
+      
+      for (final movie in movies) {
+        final tmdbId = movie['tmdb_id'];
+        if (tmdbId == null) continue;
+        
+        ref.read(syncStatusProvider.notifier).state = 
+            'Checking movie: ${movie['title'] ?? 'Unknown'}';
+        
+        if (existingMovieIds.contains(tmdbId)) {
+          developer.log(
+            'Movie exists, skipping',
+            name: 'SyncNotifier',
+            error: {
+              'title': movie['title'] ?? 'Unknown',
+              'tmdbId': tmdbId,
+            },
+          );
+          continue;
+        }
+
+        try {
+          ref.read(syncStatusProvider.notifier).state = 
+              'Adding movie: ${movie['title'] ?? 'Unknown'}';
+          
+          final movieDetails = await _tmdbService.fetchMovieDetails(tmdbId);
+          if (movie['imdb_id'] != null) {
+            movieDetails['imdb_id'] = movie['imdb_id'];
+          }
+          
+          await _dbService.insertMovie({
+            ...movieDetails,
+            'last_updated': DateTime.now().toIso8601String(),
+          });
+          
+          developer.log(
+            'Successfully added new movie',
+            name: 'SyncNotifier',
+            error: {
+              'title': movie['title'] ?? 'Unknown',
+              'imdbId': movie['imdb_id'],
+            },
+          );
+        } catch (e, st) {
+          developer.log(
+            'Failed to add new movie',
+            name: 'SyncNotifier',
+            error: {'tmdbId': tmdbId, 'title': movie['title'] ?? 'Unknown', 'error': e},
+            stackTrace: st,
+            level: 900,
+          );
+        }
+        
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+      
+      ref.read(syncStatusProvider.notifier).state = 'Movies sync completed';
+    } catch (e, stackTrace) {
+      developer.log(
+        'Error syncing movies from Trakt',
+        name: 'SyncNotifier',
+        error: e,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      throw Exception('Failed to sync movies: $e');
+    }
+  }
+
+  Future<void> _syncTVShowsFromTrakt(TraktSyncService traktService) async {
+    ref.read(syncStatusProvider.notifier).state = 'Fetching TV shows from Trakt...';
+    
+    try {
+      final shows = await traktService.getCompletedTVShows();
+      
+      ref.read(syncStatusProvider.notifier).state = 
+          'Processing ${shows.length} TV shows from Trakt...';
+      
+      final existingShows = await _dbService.getAllTVShowDetails();
+      final seasonIdMap = await _dbService.getAllSeasonIds();
+      final episodeNumberMap = await _dbService.getAllEpisodeNumbers();
+      
+      developer.log(
+        'Loaded TV show database',
+        name: 'SyncNotifier',
+        error: {
+          'showCount': existingShows.length,
+          'showsWithSeasons': seasonIdMap.length,
+        },
+      );
+      
+      for (final show in shows) {
+        final tmdbId = show['tmdb_id'];
+        final tvdbId = show['tvdb_id'];
+        final isAnime = show['is_anime'] == 1;
+        
+        if (tmdbId == null) continue;
+        
+        ref.read(syncStatusProvider.notifier).state = 
+            'Checking show: ${show['title'] ?? 'Unknown'}';
+        
+        try {
+          final existingShow = existingShows[tmdbId];
+          
+          if (existingShow != null) {
+
+            Map<String, dynamic> episodeInfo;
+            
+            if (isAnime && tvdbId != null) {
+              episodeInfo = await _tvdbService.getEpisodeCount(tvdbId);
+              final newEpisodeCount = episodeInfo['number_of_episodes'] as int;
+              final existingEpisodeCount = existingShow['total_episodes_count'] as int;
+              
+              if (newEpisodeCount <= existingEpisodeCount) {
+                developer.log(
+                  'No new episodes, skipping',
+                  name: 'SyncNotifier',
+                  error: {
+                    'title': show['title'] ?? 'Unknown',
+                    'currentEpisodes': existingEpisodeCount,
+                    'newEpisodes': newEpisodeCount,
+                  },
+                );
+                continue;
+              }
+              
+              Map<String, dynamic> showData = await _tvdbService.getAnimeDetails(tvdbId, tmdbId);
+              showData['tmdb_id'] = tmdbId;
+              showData['is_anime'] = isAnime ? 1 : 0;
+              if (tvdbId != null) showData['tvdb_id'] = tvdbId;
+              if (show['imdb_id'] != null) showData['imdb_id'] = show['imdb_id'];
+              showData['total_episodes_count'] = newEpisodeCount;
+              showData['number_of_episodes'] = newEpisodeCount;
+              showData['last_updated'] = DateTime.now().toIso8601String();
+              
+              developer.log(
+                'Updating anime with Trakt overview',
+                name: 'SyncNotifier',
+                error: {
+                  'title': show['title'] ?? 'Unknown',
+                  'has_show_data': show['show'] != null,
+                  'has_overview': show['show']?['overview'] != null,
+                  'overview': show['show']?['overview'],
+                },
+              );
+              
+              if (show['show']?['overview'] != null) {
+                showData['overview'] = show['show']['overview'];
+              }
+              
+              await _dbService.updateTVShowDetails(showData);
+              
+              if (!isAnime) {
+                await _updateExistingSeasons(
+                  tmdbId, 
+                  showData['number_of_seasons'], 
+                  showTitle: existingShow['name'],
+                  existingSeasons: seasonIdMap[tmdbId] ?? {},
+                  existingEpisodes: episodeNumberMap,
+                );
+              }
+            } else {
+              episodeInfo = await _tmdbService.getEpisodeCount(tmdbId);
+              final newEpisodeCount = episodeInfo['number_of_episodes'] as int;
+              final existingEpisodeCount = existingShow['total_episodes_count'] as int;
+              
+              if (newEpisodeCount <= existingEpisodeCount) {
+                developer.log(
+                  'No new episodes, skipping',
+                  name: 'SyncNotifier',
+                  error: {
+                    'title': show['title'] ?? 'Unknown',
+                    'currentEpisodes': existingEpisodeCount,
+                    'newEpisodes': newEpisodeCount,
+                  },
+                );
+                continue;
+              }
+              
+              Map<String, dynamic> showData = await _tmdbService.fetchTVShowDetails(tmdbId);
+              showData['tmdb_id'] = tmdbId;
+              showData['is_anime'] = isAnime ? 1 : 0;
+              if (tvdbId != null) showData['tvdb_id'] = tvdbId;
+              if (show['imdb_id'] != null) showData['imdb_id'] = show['imdb_id'];
+              showData['total_episodes_count'] = newEpisodeCount;
+              showData['number_of_episodes'] = newEpisodeCount;
+              showData['last_updated'] = DateTime.now().toIso8601String();
+              
+              await _dbService.updateTVShowDetails(showData);
+              
+              if (!isAnime) {
+                await _updateExistingSeasons(
+                  tmdbId, 
+                  showData['number_of_seasons'], 
+                  showTitle: existingShow['name'],
+                  existingSeasons: seasonIdMap[tmdbId] ?? {},
+                  existingEpisodes: episodeNumberMap,
+                );
+              }
+            }
+          } else {
+            ref.read(syncStatusProvider.notifier).state = 
+                'Adding new show: ${show['title'] ?? 'Unknown'}';
+            
+            try {
+              Map<String, dynamic> showData;
+              
+              if (isAnime && tvdbId != null) {
+                showData = await _tvdbService.getAnimeDetails(tvdbId, tmdbId);
+                showData['tmdb_id'] = tmdbId;
+                showData['is_anime'] = 1;
+                
+                developer.log(
+                  'Adding Trakt overview for anime',
+                  name: 'SyncNotifier',
+                  error: {
+                    'title': show['title'] ?? 'Unknown',
+                    'has_show_data': show['show'] != null,
+                    'has_overview': show['show']?['overview'] != null,
+                    'overview': show['show']?['overview'],
+                  },
+                );
+
+                if (show['show']?['overview'] != null) {
+                  showData['overview'] = show['show']['overview'];
+                }
+              } else {
+                showData = await _tmdbService.fetchTVShowDetails(tmdbId);
+                if (tvdbId != null) showData['tvdb_id'] = tvdbId;
+              }
+              
+              if (show['imdb_id'] != null) showData['imdb_id'] = show['imdb_id'];
+              showData['total_episodes_count'] = showData['number_of_episodes'];
+              showData['last_updated'] = DateTime.now().toIso8601String();
+              
+              await _dbService.insertTVShow(showData);
+              
+              developer.log(
+                'Successfully added new show',
+                name: 'SyncNotifier',
+                error: {
+                  'title': show['title'] ?? 'Unknown',
+                  'isAnime': isAnime,
+                  'provider': isAnime ? 'TVDB' : 'TMDB',
+                },
+              );
+            } catch (e, st) {
+              developer.log(
+                'Failed to add new show',
+                name: 'SyncNotifier',
+                error: {
+                  'title': show['title'] ?? 'Unknown',
+                  'error': e.toString(),
+                },
+                stackTrace: st,
+                level: 1000,
+              );
+            }
+          }
+          
+          await Future.delayed(const Duration(milliseconds: 250));
+        } catch (e, st) {
+          developer.log(
+            'Error processing TV show',
+            name: 'SyncNotifier',
+            error: {
+              'tmdbId': tmdbId,
+              'tvdbId': tvdbId,
+              'error': e.toString(),
+            },
+            stackTrace: st,
+            level: 1000,
+          );
+        }
+      }
+      
+      ref.read(syncStatusProvider.notifier).state = 'TV shows sync completed';
+      
+      traktService.clearCache();
+    } catch (e, stackTrace) {
+      developer.log(
+        'Error syncing TV shows from Trakt',
+        name: 'SyncNotifier',
+        error: e,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      throw Exception('Failed to sync TV shows: $e');
     }
   }
 } 

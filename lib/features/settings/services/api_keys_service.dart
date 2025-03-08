@@ -8,6 +8,8 @@ class ApiKeysService {
   static const _simklPrefix = 'simkl_api_key = ';
   static const _tmdbPrefix = 'tmdb_api_key = ';
   static const _premiumizePrefix = 'premiumize_api_key = ';
+  static const _traktPrefix = 'trakt_client_id = ';
+  static const _tvdbPrefix = 'tvdb_api_key = ';
   
   static Future<String> get _filePath async {
     final dbDir = Directory('/storage/emulated/0/Debrid_Player');
@@ -41,6 +43,10 @@ class ApiKeysService {
           keys['tmdb'] = line.substring(_tmdbPrefix.length).trim();
         } else if (line.startsWith(_premiumizePrefix)) {
           keys['premiumize'] = line.substring(_premiumizePrefix.length).trim();
+        } else if (line.startsWith(_traktPrefix)) {
+          keys['trakt'] = line.substring(_traktPrefix.length).trim();
+        } else if (line.startsWith(_tvdbPrefix)) {
+          keys['tvdb'] = line.substring(_tvdbPrefix.length).trim();
         }
       }
 

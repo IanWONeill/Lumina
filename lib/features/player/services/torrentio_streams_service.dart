@@ -30,7 +30,7 @@ class TorrentioStreamsService {
     final providers = 'yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,'
         'torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex,rutor,rutracker';
     final debridOptions = 'nodownloadlinks';
-    final premiumizeParam = premiumizeApiKey != null ? premiumizeApiKey : '';
+    final premiumizeParam = premiumizeApiKey ?? '';
     
     final String mediaType = isMovie ? 'movie' : 'series';
     String endpoint = '$_baseUrl/providers=$providers|debridoptions=$debridOptions|'

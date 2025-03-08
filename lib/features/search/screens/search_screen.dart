@@ -9,7 +9,6 @@ import '../../tv_shows/screens/seasons_screen.dart';
 import '../../movies/providers/movie_details_provider.dart';
 import '../../tv_shows/providers/tv_show_details_provider.dart';
 import 'dart:developer' as developer;
-import '../../sync/services/database_service.dart';
 import '../../search/screens/genre_results_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -121,7 +120,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       builder: (context) => AlertDialog(
         contentPadding: const EdgeInsets.all(5),
         insetPadding: const EdgeInsets.all(5),
-        content: Container(
+        content: SizedBox(
           width: MediaQuery.of(context).size.width,
           height: MediaQuery.of(context).size.height,
           child: LayoutBuilder(
@@ -204,14 +203,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-              if (states.contains(MaterialState.focused)) {
+            backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+              if (states.contains(WidgetState.focused)) {
                 return Colors.blue;
               }
               return Colors.white10;
             }),
-            foregroundColor: MaterialStateProperty.all(Colors.white),
-            padding: MaterialStateProperty.all(
+            foregroundColor: WidgetStateProperty.all(Colors.white),
+            padding: WidgetStateProperty.all(
               EdgeInsets.symmetric(
                 horizontal: constraints.maxWidth * 0.05,
                 vertical: constraints.maxHeight * 0.1,
@@ -269,14 +268,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         ),
                       ),
                       style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                          if (states.contains(MaterialState.focused)) {
+                        backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                          if (states.contains(WidgetState.focused)) {
                             return Colors.blue;
                           }
                           return Colors.white10;
                         }),
-                        foregroundColor: MaterialStateProperty.all(Colors.white),
-                        padding: MaterialStateProperty.all(
+                        foregroundColor: WidgetStateProperty.all(Colors.white),
+                        padding: WidgetStateProperty.all(
                           const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 12,
@@ -300,14 +299,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         ),
                       ),
                       style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                          if (states.contains(MaterialState.focused)) {
+                        backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                          if (states.contains(WidgetState.focused)) {
                             return Colors.blue;
                           }
                           return Colors.white10;
                         }),
-                        foregroundColor: MaterialStateProperty.all(Colors.white),
-                        padding: MaterialStateProperty.all(
+                        foregroundColor: WidgetStateProperty.all(Colors.white),
+                        padding: WidgetStateProperty.all(
                           const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 12,
@@ -331,14 +330,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         ),
                       ),
                       style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                          if (states.contains(MaterialState.focused)) {
+                        backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                          if (states.contains(WidgetState.focused)) {
                             return Colors.blue;
                           }
                           return Colors.white10;
                         }),
-                        foregroundColor: MaterialStateProperty.all(Colors.white),
-                        padding: MaterialStateProperty.all(
+                        foregroundColor: WidgetStateProperty.all(Colors.white),
+                        padding: WidgetStateProperty.all(
                           const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 12,

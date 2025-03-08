@@ -3,8 +3,10 @@ description: "A new Flutter project."
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
+# Build configuration flags
+move_release_apk_to_desktop: true
+version: 1.0.5
 
-version: 1.0.4
 
 environment:
   sdk: ^3.6.0
@@ -38,26 +40,20 @@ dependencies:
   webfeed:
   package_info_plus:
   url_launcher:
-
-
   cupertino_icons: ^1.0.8
+  flutter_secure_storage: ^9.2.4
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-
   flutter_lints: ^5.0.0
-
   riverpod_generator:
   freezed:
   json_serializable: ^6.7.1
 
 
 flutter:
-
-
   uses-material-design: true
-
   assets:
     - assets/images/missing_poster.webp

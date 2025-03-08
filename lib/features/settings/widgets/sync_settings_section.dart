@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/auto_sync_preference_provider.dart';
 import '../providers/sync_list_preference_provider.dart';
+import '../providers/sync_source_provider.dart';
+import '../providers/trakt_list_id_provider.dart';
+import '../providers/trakt_username_provider.dart';
 import '../providers/last_sync_time_provider.dart';
 
 class SyncSettingsSection extends ConsumerWidget {
@@ -11,6 +14,9 @@ class SyncSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final listPreference = ref.watch(simklListPreferenceProvider);
     final autoSyncPreference = ref.watch(autoSyncPreferenceProvider);
+    final syncSourcePreference = ref.watch(syncSourcePreferenceProvider);
+    final traktListId = ref.watch(traktListIdProvider);
+    final traktUsername = ref.watch(traktUsernameProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,16 +30,16 @@ class SyncSettingsSection extends ConsumerWidget {
           child: Builder(
             builder: (context) {
               final focused = Focus.of(context).hasFocus;
-              return Container(
+              return SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
-                    final currentType = listPreference.value ?? SimklListType.planToWatch;
-                    final newType = currentType == SimklListType.completed
-                        ? SimklListType.planToWatch
-                        : SimklListType.completed;
-                    await ref.read(simklListPreferenceProvider.notifier)
-                        .setListType(newType);
+                    final currentSource = syncSourcePreference.value ?? SyncSource.simkl;
+                    final newSource = currentSource == SyncSource.simkl
+                        ? SyncSource.trakt
+                        : SyncSource.simkl;
+                    await ref.read(syncSourcePreferenceProvider.notifier)
+                        .setSource(newSource);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: focused 
@@ -48,10 +54,10 @@ class SyncSettingsSection extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Simkl List to Sync: ${listPreference.when(
-                        data: (type) => type == SimklListType.completed 
-                            ? 'Completed' 
-                            : 'Plan to Watch',
+                      Text('Sync Source: ${syncSourcePreference.when(
+                        data: (type) => type == SyncSource.simkl 
+                            ? 'SIMKL' 
+                            : 'Trakt',
                         loading: () => '...',
                         error: (_, __) => 'Error',
                       )}'),
@@ -68,11 +74,139 @@ class SyncSettingsSection extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
+        if (syncSourcePreference.value == SyncSource.simkl) ...[
+          Focus(
+            child: Builder(
+              builder: (context) {
+                final focused = Focus.of(context).hasFocus;
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final currentType = listPreference.value ?? SimklListType.planToWatch;
+                      final newType = currentType == SimklListType.completed
+                          ? SimklListType.planToWatch
+                          : SimklListType.completed;
+                      await ref.read(simklListPreferenceProvider.notifier)
+                          .setListType(newType);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: focused 
+                          ? Colors.blue.withOpacity(0.2) 
+                          : Colors.white.withOpacity(0.1),
+                      foregroundColor: focused ? Colors.blue : Colors.white,
+                      padding: const EdgeInsets.all(16),
+                      side: focused 
+                          ? const BorderSide(color: Colors.blue, width: 2)
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('SIMKL List to Sync: ${listPreference.when(
+                          data: (type) => type == SimklListType.completed 
+                              ? 'Completed' 
+                              : 'Plan to Watch',
+                          loading: () => '...',
+                          error: (_, __) => 'Error',
+                        )}'),
+                        Icon(
+                          Icons.swap_horiz,
+                          color: focused ? Colors.blue : Colors.white,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ] else if (syncSourcePreference.value == SyncSource.trakt) ...[
+          Focus(
+            child: Builder(
+              builder: (context) {
+                final focused = Focus.of(context).hasFocus;
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => _showTraktUsernameDialog(context, ref),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: focused 
+                          ? Colors.blue.withOpacity(0.2) 
+                          : Colors.white.withOpacity(0.1),
+                      foregroundColor: focused ? Colors.blue : Colors.white,
+                      padding: const EdgeInsets.all(16),
+                      side: focused 
+                          ? const BorderSide(color: Colors.blue, width: 2)
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Trakt Username: ${traktUsername.when(
+                          data: (username) => username ?? 'Not Set',
+                          loading: () => '...',
+                          error: (_, __) => 'Error',
+                        )}'),
+                        Icon(
+                          Icons.edit,
+                          color: focused ? Colors.blue : Colors.white,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Focus(
+            child: Builder(
+              builder: (context) {
+                final focused = Focus.of(context).hasFocus;
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => _showTraktListIdDialog(context, ref),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: focused 
+                          ? Colors.blue.withOpacity(0.2) 
+                          : Colors.white.withOpacity(0.1),
+                      foregroundColor: focused ? Colors.blue : Colors.white,
+                      padding: const EdgeInsets.all(16),
+                      side: focused 
+                          ? const BorderSide(color: Colors.blue, width: 2)
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Trakt List ID: ${traktListId.when(
+                          data: (id) => id ?? 'Not Set',
+                          loading: () => '...',
+                          error: (_, __) => 'Error',
+                        )}'),
+                        Icon(
+                          Icons.edit,
+                          color: focused ? Colors.blue : Colors.white,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
         Focus(
           child: Builder(
             builder: (context) {
               final focused = Focus.of(context).hasFocus;
-              return Container(
+              return SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
@@ -116,7 +250,7 @@ class SyncSettingsSection extends ConsumerWidget {
             child: Builder(
               builder: (context) {
                 final focused = Focus.of(context).hasFocus;
-                return Container(
+                return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
@@ -188,7 +322,7 @@ class SyncSettingsSection extends ConsumerWidget {
             child: Builder(
               builder: (context) {
                 final focused = Focus.of(context).hasFocus;
-                return Container(
+                return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => _showTimePickerDialog(context, ref),
@@ -306,6 +440,99 @@ class SyncSettingsSection extends ConsumerWidget {
               );
             },
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTraktUsernameDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(
+      text: ref.read(traktUsernameProvider).value ?? '',
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Trakt Username'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'Enter your Trakt username',
+              ),
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              autocorrect: false,
+              enableSuggestions: false,
+              onSubmitted: (value) {
+                final username = value.trim();
+                if (username.isNotEmpty) {
+                  ref.read(traktUsernameProvider.notifier).setUsername(username);
+                }
+                Navigator.of(context).pop();
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This is needed to access your Trakt lists.\nPress Enter or Done on keyboard to save.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTraktListIdDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(
+      text: ref.read(traktListIdProvider).value ?? '',
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Trakt List ID'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'Enter list ID number',
+              ),
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              autocorrect: false,
+              enableSuggestions: false,
+              onSubmitted: (value) {
+                final listId = value.trim();
+                if (listId.isNotEmpty) {
+                  ref.read(traktListIdProvider.notifier).setListId(listId);
+                }
+                Navigator.of(context).pop();
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Press Enter or Done on keyboard to save.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
         ),
         actions: [
           TextButton(

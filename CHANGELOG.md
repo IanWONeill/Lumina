@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5 [3/8/2025]
+
+### Added
+- Added Trakt as a list provider
+- Added TVDB as a metadata provider for anime shows
+
 ## 1.0.4 [2/27/2025]
 
 ### Added
