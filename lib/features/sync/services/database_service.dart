@@ -667,29 +667,62 @@ class DatabaseService {
     final db = await database;
     
     await db.transaction((txn) async {
-      await txn.delete(
-        'episodes',
-        where: 'show_id = ?',
-        whereArgs: [showId],
-      );
+      try {
+        developer.log(
+          'Starting TV show deletion transaction',
+          name: 'DatabaseService',
+          error: {'showId': showId},
+        );
 
-      await txn.delete(
-        'seasons',
-        where: 'show_id = ?',
-        whereArgs: [showId],
-      );
+        // Delete episodes first
+        await txn.delete(
+          'episodes',
+          where: 'show_id = ?',
+          whereArgs: [showId],
+        );
 
-      await txn.delete(
-        'tv_shows',
-        where: 'tmdb_id = ?',
-        whereArgs: [showId],
-      );
+        // Delete seasons
+        await txn.delete(
+          'seasons',
+          where: 'show_id = ?',
+          whereArgs: [showId],
+        );
 
-      await txn.delete(
-        'cast',
-        where: 'media_id = ? AND media_type = ?',
-        whereArgs: [showId, 'tv'],
-      );
+        // Delete cast associations
+        await txn.delete(
+          'media_cast',
+          where: 'media_id = ? AND media_type = ?',
+          whereArgs: [showId, 'tv'],
+        );
+
+        // Finally delete the show
+        final result = await txn.delete(
+          'tv_shows',
+          where: 'tmdb_id = ?',
+          whereArgs: [showId],
+        );
+
+        developer.log(
+          'TV show deletion completed',
+          name: 'DatabaseService',
+          error: {
+            'showId': showId,
+            'rowsAffected': result,
+          },
+        );
+      } catch (e, st) {
+        developer.log(
+          'Error deleting TV show',
+          name: 'DatabaseService',
+          error: {
+            'showId': showId,
+            'error': e.toString(),
+          },
+          stackTrace: st,
+          level: 1000,
+        );
+        rethrow;
+      }
     });
   }
 
@@ -1405,23 +1438,61 @@ class DatabaseService {
     final db = await database;
     
     await db.transaction((txn) async {
-      await txn.delete(
-        'media_cast',
-        where: 'media_id = ? AND media_type = ?',
-        whereArgs: [tmdbId, 'movie'],
-      );
+      try {
+        developer.log(
+          'Starting movie deletion transaction',
+          name: 'DatabaseService',
+          error: {'movieId': tmdbId},
+        );
 
-      await txn.delete(
-        'movie_genres',
-        where: 'movie_id = ?',
-        whereArgs: [tmdbId],
-      );
+        // Delete related records first
+        await txn.delete(
+          'media_cast',
+          where: 'media_id = ? AND media_type = ?',
+          whereArgs: [tmdbId, 'movie'],
+        );
 
-      await txn.delete(
-        'movies',
-        where: 'tmdb_id = ?',
-        whereArgs: [tmdbId],
-      );
+        await txn.delete(
+          'movie_genres',
+          where: 'movie_id = ?',
+          whereArgs: [tmdbId],
+        );
+
+        // Delete from movie_collections
+        await txn.delete(
+          'movie_collections',
+          where: 'movie_tmdb_id = ?',
+          whereArgs: [tmdbId],
+        );
+
+        // Finally delete the movie
+        final result = await txn.delete(
+          'movies',
+          where: 'tmdb_id = ?',
+          whereArgs: [tmdbId],
+        );
+
+        developer.log(
+          'Movie deletion completed',
+          name: 'DatabaseService',
+          error: {
+            'movieId': tmdbId,
+            'rowsAffected': result,
+          },
+        );
+      } catch (e, st) {
+        developer.log(
+          'Error deleting movie',
+          name: 'DatabaseService',
+          error: {
+            'movieId': tmdbId,
+            'error': e.toString(),
+          },
+          stackTrace: st,
+          level: 1000,
+        );
+        rethrow;
+      }
     });
   }
 

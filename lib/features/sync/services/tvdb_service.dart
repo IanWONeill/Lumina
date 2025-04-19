@@ -275,8 +275,6 @@ class TVDBService {
         final showData = {
           'tvdb_id': tvdbId,
           'tmdb_id': tmdbId,
-          'original_name': seriesData['name'],
-          'name': seriesData['name'],
           'overview': '',
           'first_air_date': seriesData['firstAired'],
           'last_air_date': seriesData['lastAired'],

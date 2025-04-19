@@ -6,6 +6,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:debrid_player/features/sync/services/wikidata_service.dart';
 import 'package:debrid_player/features/sync/services/database_service.dart';
 import 'package:debrid_player/features/sync/services/simkl_service.dart';
+import 'package:debrid_player/features/sync/services/trakt_service.dart';
 
 class TMDBService {
   final String _apiKey;
@@ -107,28 +108,15 @@ class TMDBService {
       );
 
       String title = data['title'] ?? '';
-      String originalTitle = data['original_title'] ?? '';
+      String originalTitle = title;
       
-      if (originalTitle.isEmpty) {
-        developer.log(
-          'Empty original title',
-          name: 'TMDBService',
-          error: {'tmdbId': tmdbId, 'title': title},
-          level: 900,
-        );
-        originalTitle = title;
-      }
       if (title.isEmpty) {
         developer.log(
           'Empty title',
           name: 'TMDBService',
-          error: {'tmdbId': tmdbId, 'originalTitle': originalTitle},
+          error: {'tmdbId': tmdbId},
           level: 900,
         );
-        title = originalTitle;
-      }
-      
-      if (title.isEmpty) {
         throw Exception('No valid title found for movie $tmdbId');
       }
 
@@ -243,16 +231,15 @@ class TMDBService {
       final data = jsonDecode(response.body);
       
       String name = data['name'] ?? '';
-      String originalName = data['original_name'] ?? '';
-      
-      if (originalName.isEmpty) {
-        originalName = name;
-      }
-      if (name.isEmpty) {
-        name = originalName;
-      }
+      String originalName = name;
       
       if (name.isEmpty) {
+        developer.log(
+          'Empty name',
+          name: 'TMDBService',
+          error: {'tmdbId': tmdbId},
+          level: 900,
+        );
         throw Exception('No valid name found for TV show $tmdbId');
       }
 
@@ -761,6 +748,167 @@ class TMDBService {
       await _databaseService.deleteShowData(showId);
       developer.log(
         'Deleted TV show after $syncsBeforeDelete syncs',
+        name: 'TMDBService',
+        error: {
+          'showId': showId,
+          'title': show['original_name'],
+          'syncCount': show['deletion_syncs'],
+        },
+      );
+    }
+  }
+
+  Future<void> syncWithTrakt(TraktSyncService traktService) async {
+    if (traktService == null) {
+      developer.log(
+        'Trakt service is not available for sync',
+        name: 'TMDBService',
+        level: 900,
+      );
+      return;
+    }
+    
+    final syncsBeforeDelete = 5;
+    
+    final existingMovieIds = await _databaseService.getMovieTmdbIds();
+    final existingShowIds = await _databaseService.getTVShowTmdbIds();
+
+    final traktMovies = await traktService.getCompletedMovies();
+    final traktShows = await traktService.getCompletedTVShows();
+
+    developer.log(
+      'Starting Trakt sync check',
+      name: 'TMDBService',
+      error: {
+        'existingMovies': existingMovieIds.length,
+        'existingShows': existingShowIds.length,
+        'traktMovies': traktMovies.length,
+        'traktShows': traktShows.length,
+      },
+    );
+
+    final traktMovieIds = traktMovies
+        .where((m) => m['tmdb_id'] != null)
+        .map((m) => m['tmdb_id'] as int)
+        .toSet();
+    final traktShowIds = traktShows
+        .where((s) => s['tmdb_id'] != null)
+        .map((s) => s['tmdb_id'] as int)
+        .toSet();
+
+    final markedMovies = await _databaseService.getItemsMarkedForDeletion('movie', 1);
+    final markedShows = await _databaseService.getItemsMarkedForDeletion('tv', 1);
+
+    developer.log(
+      'Found marked items for Trakt sync',
+      name: 'TMDBService',
+      error: {
+        'markedMovies': markedMovies.length,
+        'markedShows': markedShows.length,
+      },
+    );
+
+    for (final movie in markedMovies) {
+      final movieId = movie['tmdb_id'] as int;
+      if (!traktMovieIds.contains(movieId)) {
+        await _databaseService.incrementDeletionSync('movie', movieId);
+        developer.log(
+          'Incremented movie deletion counter for Trakt',
+          name: 'TMDBService',
+          error: {
+            'movieId': movieId,
+            'title': movie['original_title'],
+            'currentCount': movie['deletion_syncs'],
+          },
+        );
+      }
+    }
+
+    for (final show in markedShows) {
+      final showId = show['tmdb_id'] as int;
+      if (!traktShowIds.contains(showId)) {
+        await _databaseService.incrementDeletionSync('tv', showId);
+        developer.log(
+          'Incremented show deletion counter for Trakt',
+          name: 'TMDBService',
+          error: {
+            'showId': showId,
+            'title': show['original_name'],
+            'currentCount': show['deletion_syncs'],
+          },
+        );
+      }
+    }
+
+    for (final movieId in existingMovieIds) {
+      if (!traktMovieIds.contains(movieId)) {
+        final isMarked = markedMovies.any((m) => m['tmdb_id'] == movieId);
+        if (!isMarked) {
+          await _databaseService.markForDeletion('movie', movieId);
+          developer.log(
+            'Marked movie for deletion in Trakt sync',
+            name: 'TMDBService',
+            error: {'movieId': movieId},
+          );
+        }
+      } else {
+        await _databaseService.clearDeletionMark('movie', movieId);
+      }
+    }
+
+    for (final showId in existingShowIds) {
+      if (!traktShowIds.contains(showId)) {
+        final isMarked = markedShows.any((s) => s['tmdb_id'] == showId);
+        if (!isMarked) {
+          await _databaseService.markForDeletion('tv', showId);
+          developer.log(
+            'Marked show for deletion in Trakt sync',
+            name: 'TMDBService',
+            error: {'showId': showId},
+          );
+        }
+      } else {
+        await _databaseService.clearDeletionMark('tv', showId);
+      }
+    }
+
+    final moviesToDelete = await _databaseService.getItemsMarkedForDeletion(
+      'movie',
+      syncsBeforeDelete,
+    );
+    final showsToDelete = await _databaseService.getItemsMarkedForDeletion(
+      'tv',
+      syncsBeforeDelete,
+    );
+
+    developer.log(
+      'Found items ready for deletion in Trakt sync',
+      name: 'TMDBService',
+      error: {
+        'moviesToDelete': moviesToDelete.length,
+        'showsToDelete': showsToDelete.length,
+      },
+    );
+
+    for (final movie in moviesToDelete) {
+      final movieId = movie['tmdb_id'] as int;
+      await _databaseService.deleteMovie(movieId);
+      developer.log(
+        'Deleted movie after $syncsBeforeDelete Trakt syncs',
+        name: 'TMDBService',
+        error: {
+          'movieId': movieId,
+          'title': movie['original_title'],
+          'syncCount': movie['deletion_syncs'],
+        },
+      );
+    }
+
+    for (final show in showsToDelete) {
+      final showId = show['tmdb_id'] as int;
+      await _databaseService.deleteShowData(showId);
+      developer.log(
+        'Deleted TV show after $syncsBeforeDelete Trakt syncs',
         name: 'TMDBService',
         error: {
           'showId': showId,

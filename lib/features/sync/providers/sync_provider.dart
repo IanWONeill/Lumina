@@ -5,6 +5,8 @@ import '../services/tmdb_service.dart';
 import '../services/tvdb_service.dart';
 import '../services/simkl_service.dart';
 import '../services/trakt_service.dart';
+import '../../movies/providers/movies_provider.dart';
+import '../../tv_shows/providers/tv_shows_provider.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/providers/sync_source_provider.dart';
 import '../../settings/providers/last_sync_time_provider.dart';
@@ -131,6 +133,8 @@ class SyncNotifier extends AsyncNotifier<void> {
       
       if (syncSource == SyncSource.simkl) {
         await _tmdbService.syncWithSimkl();
+      } else {
+        await _tmdbService.syncWithTrakt(_traktService!);
       }
       
       final now = DateTime.now();
@@ -138,6 +142,9 @@ class SyncNotifier extends AsyncNotifier<void> {
       
       ref.read(syncStatusProvider.notifier).state = 'Sync completed';
       state = const AsyncData(null);
+      
+      ref.invalidate(moviesProvider);
+      ref.invalidate(tVShowsProvider);
     } catch (e, st) {
       ref.read(syncStatusProvider.notifier).state = 'Sync failed: $e';
       developer.log(
@@ -700,6 +707,20 @@ class SyncNotifier extends AsyncNotifier<void> {
                 showData['overview'] = show['show']['overview'];
               }
               
+              if (show['title'] != null) {
+                showData['name'] = show['title'];
+                showData['original_name'] = show['title'];
+                
+                developer.log(
+                  'Using Trakt title for existing anime show',
+                  name: 'SyncNotifier',
+                  error: {
+                    'title': show['title'],
+                    'tvdb_slug': showData['original_name'],
+                  },
+                );
+              }
+              
               await _dbService.updateTVShowDetails(showData);
               
               if (!isAnime) {
@@ -775,6 +796,20 @@ class SyncNotifier extends AsyncNotifier<void> {
 
                 if (show['show']?['overview'] != null) {
                   showData['overview'] = show['show']['overview'];
+                }
+                
+                if (show['title'] != null) {
+                  showData['name'] = show['title'];
+                  showData['original_name'] = show['title'];
+                  
+                  developer.log(
+                    'Using Trakt title for anime show',
+                    name: 'SyncNotifier',
+                    error: {
+                      'title': show['title'],
+                      'tvdb_slug': showData['original_name'],
+                    },
+                  );
                 }
               } else {
                 showData = await _tmdbService.fetchTVShowDetails(tmdbId);

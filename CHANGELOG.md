@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.6 [4/16/2025]
+
+### Fixes
+- Fixed lists not updating after a sync
+- Fixed anime show names being in japanese
+
 ## 1.0.5 [3/8/2025]
 
 ### Added
