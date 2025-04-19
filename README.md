@@ -75,13 +75,21 @@ Note: The app currently has hardcoded paths for Android. Modifications are neede
 
     Add your API keys to the Debrid_Player/api_keys.txt file:
 
-    tmdb_api_key = your_key_here
-    orion_app_key = your_key_here
-    simkl_api_key = your_key_here
-	trakt_client_id = your_key_here
-	premiumize_api_key = your_key_here
-	tvdb_api_key = your_key_here
 
+    These 3 keys are required.
+	    tvdb_api_key = your_key_here
+        tmdb_api_key = your_key_here
+	    premiumize_api_key = your_key_here
+	
+	Add either of these keys to the services you plan to use.
+        simkl_api_key = your_key_here
+	    trakt_client_id = your_key_here
+	
+	add this key if you plan to use orionoid.
+        orion_app_key = your_key_here
+
+	
+	
     Build your Simkl/Trakt library:
 
         Add movies/shows to your "Plan to Watch" list or "Completed" List, or if using trakt to a custom list.
