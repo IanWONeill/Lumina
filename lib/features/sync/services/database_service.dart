@@ -674,28 +674,24 @@ class DatabaseService {
           error: {'showId': showId},
         );
 
-        // Delete episodes first
         await txn.delete(
           'episodes',
           where: 'show_id = ?',
           whereArgs: [showId],
         );
 
-        // Delete seasons
         await txn.delete(
           'seasons',
           where: 'show_id = ?',
           whereArgs: [showId],
         );
 
-        // Delete cast associations
         await txn.delete(
           'media_cast',
           where: 'media_id = ? AND media_type = ?',
           whereArgs: [showId, 'tv'],
         );
 
-        // Finally delete the show
         final result = await txn.delete(
           'tv_shows',
           where: 'tmdb_id = ?',
@@ -1445,7 +1441,6 @@ class DatabaseService {
           error: {'movieId': tmdbId},
         );
 
-        // Delete related records first
         await txn.delete(
           'media_cast',
           where: 'media_id = ? AND media_type = ?',
@@ -1458,14 +1453,12 @@ class DatabaseService {
           whereArgs: [tmdbId],
         );
 
-        // Delete from movie_collections
         await txn.delete(
           'movie_collections',
           where: 'movie_tmdb_id = ?',
           whereArgs: [tmdbId],
         );
 
-        // Finally delete the movie
         final result = await txn.delete(
           'movies',
           where: 'tmdb_id = ?',

@@ -133,3 +133,22 @@ Distributed under the MIT License. See LICENSE for more information.
     moneytoo for his JustPlayer
 
 ### 📌 Suggestions for improvement are welcome
+
+
+# Screenshots
+
+
+### Main / Home Screen
+![Alt text](Screenshots/Main_Screen.png)
+
+### Movies List
+![Alt text](Screenshots/Movies_list.png)
+
+### Selected movie Pre-Play screen
+![Alt text](Screenshots/PrePlay_Screen.png)
+
+### Search Screen
+![Alt text](Screenshots/Search_Screen.png)
+
+### Genre Search Selections
+![Alt text](Screenshots/Genre_Search.png)
