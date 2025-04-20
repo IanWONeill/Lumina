@@ -164,7 +164,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Center(
-          child: Text('Exit Lumina?'),
+          child: Text('Exit Lumina??'),
         ),
         contentPadding: const EdgeInsets.only(
           top: 20,
@@ -175,7 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         content: const SizedBox(
           height: 20,
           child: Center(
-            child: Text('Are you sure you want to exit?'),
+            child: Text('Are you sure you want to exit??'),
           ),
         ),
         actionsAlignment: MainAxisAlignment.center,

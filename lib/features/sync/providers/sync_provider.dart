@@ -861,7 +861,7 @@ class SyncNotifier extends AsyncNotifier<void> {
         }
       }
       
-      ref.read(syncStatusProvider.notifier).state = 'TV shows sync completed';
+      ref.read(syncStatusProvider.notifier).state = 'Sync completed, Cleaning up...';
       
       traktService.clearCache();
     } catch (e, stackTrace) {

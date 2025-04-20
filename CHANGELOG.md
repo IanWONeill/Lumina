@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.7 [4/19/2025]
+
+### Fixes
+- Fixed streams sometimes loading incorrectly
+
 ## 1.0.6 [4/16/2025]
 
 ### Fixes
