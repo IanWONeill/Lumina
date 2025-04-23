@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
+import 'dart:io' show exit;
+import 'package:device_info_plus/device_info_plus.dart';
 import 'features/movies/screens/movies_screen.dart';
 import 'features/tv_shows/screens/tv_shows_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
@@ -14,13 +16,126 @@ import 'widgets/digital_clock.dart';
 import 'features/database/providers/database_provider.dart';
 import 'widgets/rss_ticker.dart';
 import 'features/upgrader/widgets/update_checker_widget.dart';
+import 'features/settings/services/api_keys_service.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 final movieCountProvider = StateNotifierProvider<CountNotifier, int>((ref) => CountNotifier());
 final tvShowCountProvider = StateNotifierProvider<CountNotifier, int>((ref) => CountNotifier());
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Check for storage permission first
+  final hasPermission = await ApiKeysService.hasStoragePermission();
+  if (!hasPermission) {
+    final deviceInfo = await DeviceInfoPlugin().androidInfo;
+    final sdkInt = deviceInfo.version.sdkInt;
+    
+    String permissionInstructions = 'Please grant storage permission in your device settings and restart the app.';
+    if (sdkInt >= 30) {
+      permissionInstructions = 'Please go to Settings > Apps > Debrid Player > Permissions > Files and media > Allow management of all files and restart the app.';
+    } else if (sdkInt >= 29) {
+      permissionInstructions = 'Please go to Settings > Apps > Debrid Player > Permissions > Storage > Allow and restart the app.';
+    }
+
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: AlertDialog(
+              title: const Text('Storage Permission Required'),
+              content: Text(
+                'This app requires storage permission to save metadata.\n\n'
+                '$permissionInstructions',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => exit(0),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+  
+  final wasCreated = await ApiKeysService.createApiKeysFileIfNotExists();
+  
+  if (wasCreated) {
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: AlertDialog(
+              title: const Text('API Keys File Created'),
+              content: const Text(
+                'The API keys file was not found and has been created.\n\n'
+                'Please edit the file at:\n'
+                '/storage/Debrid_Player/api_keys.txt\n\n'
+                'Add your API keys and restart the app.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => exit(0),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+
+  final apiKeysStatus = await ApiKeysService.checkApiKeys();
+  final missingRequired = apiKeysStatus['missingRequired']!;
+  final missingOptional = apiKeysStatus['missingOptional']!;
+
+  if (missingRequired.isNotEmpty || missingOptional.isNotEmpty) {
+    final message = StringBuffer();
+    
+    if (missingRequired.isNotEmpty) {
+      message.writeln('The following required API keys are missing or not set:');
+      message.writeln(missingRequired.map((key) => key.toUpperCase()).join(', '));
+      message.writeln();
+    }
+    
+    if (missingOptional.isNotEmpty) {
+      message.writeln('You must set at least one of these API keys:');
+      message.writeln(missingOptional.map((key) => key.toUpperCase()).join(' or '));
+      message.writeln();
+    }
+    
+    message.writeln('Please edit the file at:');
+    message.writeln('/storage/Debrid_Player/api_keys.txt');
+    message.writeln();
+    message.writeln('Add your API keys and restart the app.');
+
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: AlertDialog(
+              title: const Text('Missing API Keys'),
+              content: Text(message.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => exit(0),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+  
   runApp(
     const ProviderScope(
       child: MyApp(),
@@ -202,6 +317,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     _updateCounts();
 
+    final menuItems = [
+      const MenuItem(
+        icon: Icons.movie,
+        label: 'Movies',
+        destination: MoviesScreen(),
+      ),
+      const MenuItem(
+        icon: Icons.tv,
+        label: 'TV Shows',
+        destination: TVShowsScreen(),
+      ),
+      MenuItem(
+        icon: Icons.search,
+        label: 'Search',
+        destination: const SearchScreen(),
+        onSelect: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SearchScreen(),
+            ),
+          );
+        },
+      ),
+      MenuItem(
+        icon: Icons.sync,
+        label: 'Sync',
+        destination: const SizedBox.shrink(),
+        onSelect: () {
+          if (syncState.hasError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Sync failed: ${syncState.error.toString()}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.red.shade900,
+                duration: const Duration(seconds: 8),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+          } else {
+            ref.read(syncProvider.notifier).sync();
+          }
+        },
+      ),
+      const MenuItem(
+        icon: Icons.settings,
+        label: 'Settings',
+        destination: SettingsScreen(),
+      ),
+    ];
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
@@ -270,7 +442,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               right: 0,
               child: RSSTicker(),
             ),
-            _buildSettingsButton(),
+            _buildSettingsButton(menuItems),
             const Positioned(
               bottom: 20,
               left: 20,
@@ -296,120 +468,142 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const _syncMenuIndex = 3;
   static const _settingsIndex = 4;
 
-  late final List<MenuItem> _menuItems = [
-    const MenuItem(
-      icon: Icons.movie,
-      label: 'Movies',
-      destination: MoviesScreen(),
-    ),
-    const MenuItem(
-      icon: Icons.tv,
-      label: 'TV Shows',
-      destination: TVShowsScreen(),
-    ),
-    MenuItem(
-      icon: Icons.search,
-      label: 'Search',
-      destination: const SearchScreen(),
-      onSelect: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SearchScreen(),
-          ),
-        );
-      },
-    ),
-    MenuItem(
-      icon: Icons.sync,
-      label: 'Sync',
-      destination: const SizedBox.shrink(),
-      onSelect: () => ref.read(syncProvider.notifier).sync(),
-    ),
-    const MenuItem(
-      icon: Icons.settings,
-      label: 'Settings',
-      destination: SettingsScreen(),
-    ),
-  ];
+  Widget _buildMainMenu(AsyncValue<void> syncState) {
+    final menuItems = [
+      const MenuItem(
+        icon: Icons.movie,
+        label: 'Movies',
+        destination: MoviesScreen(),
+      ),
+      const MenuItem(
+        icon: Icons.tv,
+        label: 'TV Shows',
+        destination: TVShowsScreen(),
+      ),
+      MenuItem(
+        icon: Icons.search,
+        label: 'Search',
+        destination: const SearchScreen(),
+        onSelect: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SearchScreen(),
+            ),
+          );
+        },
+      ),
+      MenuItem(
+        icon: Icons.sync,
+        label: 'Sync',
+        destination: const SizedBox.shrink(),
+        onSelect: () {
+          if (syncState.hasError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Sync failed: ${syncState.error.toString()}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.red.shade900,
+                duration: const Duration(seconds: 8),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+          } else {
+            ref.read(syncProvider.notifier).sync();
+          }
+        },
+      ),
+      const MenuItem(
+        icon: Icons.settings,
+        label: 'Settings',
+        destination: SettingsScreen(),
+      ),
+    ];
 
-  Widget _buildMainMenu(AsyncValue<void> syncState) => SizedBox(
-        height: 200,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            _menuItems.length - 1,
-            (index) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: FocusableActionDetector(
-                autofocus: index == 0,
-                onFocusChange: (focused) {
-                  if (focused) {
-                    setState(() => _focusedIndex = index);
-                  }
-                },
-                actions: {
-                  ActivateIntent: CallbackAction<ActivateIntent>(
-                    onInvoke: (_) {
-                      if (index == _syncMenuIndex) {
-                        _menuItems[index].onSelect?.call();
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => _menuItems[index].destination,
-                          ),
-                        );
-                      }
-                      return null;
-                    },
-                  ),
-                },
-                child: Focus(
-                  onKey: (node, event) {
-                    if (event is RawKeyDownEvent) {
-                      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                        FocusScope.of(context).requestFocus(_settingsFocusNode);
-                        setState(() => _focusedIndex = _settingsIndex);
-                        return KeyEventResult.handled;
-                      }
-                      if (index == _syncMenuIndex && 
-                          event.logicalKey == LogicalKeyboardKey.arrowRight) {
-                        return KeyEventResult.handled;
-                      }
+    return SizedBox(
+      height: 200,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(
+          menuItems.length - 1,
+          (index) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: FocusableActionDetector(
+              autofocus: index == 0,
+              onFocusChange: (focused) {
+                if (focused) {
+                  setState(() => _focusedIndex = index);
+                }
+              },
+              actions: {
+                ActivateIntent: CallbackAction<ActivateIntent>(
+                  onInvoke: (_) {
+                    if (index == _syncMenuIndex) {
+                      menuItems[index].onSelect?.call();
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => menuItems[index].destination,
+                        ),
+                      );
                     }
-                    return KeyEventResult.ignored;
+                    return null;
                   },
-                  child: InkWell(
-                    onTap: () {
-                      if (index == _syncMenuIndex) {
-                        _menuItems[index].onSelect?.call();
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => _menuItems[index].destination,
-                          ),
-                        );
-                      }
-                    },
-                    child: MainMenuItem(
-                      item: _menuItems[index],
-                      isFocused: index == _focusedIndex,
-                      isLoading: index == _syncMenuIndex && syncState.isLoading,
-                      hasError: index == _syncMenuIndex && syncState.hasError,
-                    ),
+                ),
+              },
+              child: Focus(
+                onKey: (node, event) {
+                  if (event is RawKeyDownEvent) {
+                    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                      FocusScope.of(context).requestFocus(_settingsFocusNode);
+                      setState(() => _focusedIndex = _settingsIndex);
+                      return KeyEventResult.handled;
+                    }
+                    if (index == _syncMenuIndex && 
+                        event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                      return KeyEventResult.handled;
+                    }
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: InkWell(
+                  onTap: () {
+                    if (index == _syncMenuIndex) {
+                      menuItems[index].onSelect?.call();
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => menuItems[index].destination,
+                        ),
+                      );
+                    }
+                  },
+                  child: MainMenuItem(
+                    item: menuItems[index],
+                    isFocused: index == _focusedIndex,
+                    isLoading: index == _syncMenuIndex && syncState.isLoading,
+                    hasError: index == _syncMenuIndex && syncState.hasError,
                   ),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 
   final _settingsFocusNode = FocusNode();
 
-  Widget _buildSettingsButton() => Positioned(
+  Widget _buildSettingsButton(List<MenuItem> menuItems) => Positioned(
         bottom: 1,
         right: 20,
         child: SizedBox(
@@ -427,7 +621,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => _menuItems[_settingsIndex].destination,
+                      builder: (context) => menuItems[_settingsIndex].destination,
                     ),
                   );
                   return null;

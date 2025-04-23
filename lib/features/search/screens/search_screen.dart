@@ -86,7 +86,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
     
     if (query.isNotEmpty) {
-      ref.read(searchQueryProvider.notifier).state = query;
+      final trimmedQuery = query.trim();
+      ref.read(searchQueryProvider.notifier).state = trimmedQuery;
       setState(() {
         _showKeyboard = false;
       });
@@ -354,6 +355,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     focusNode: _textFieldFocusNode,
                     controller: _searchController,
                     autofocus: true,
+                    autocorrect: false,
+                    enableSuggestions: false,
                     decoration: const InputDecoration(
                       hintText: 'Enter movie, TV show, or actor name...',
                       border: OutlineInputBorder(),

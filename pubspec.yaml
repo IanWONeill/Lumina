@@ -5,7 +5,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 # Build configuration flags
 move_release_apk_to_desktop: true
-version: 1.0.7
+version: 1.0.8
 
 
 environment:
@@ -15,41 +15,43 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_riverpod:
-  scrollable_positioned_list:
-  http:
-  shared_preferences:
-  sqflite:
-  path:
-  dio:
-  path_provider:
-  build_runner:
-  hooks_riverpod:
-  riverpod_annotation:
-  freezed_annotation:
+  flutter_riverpod: ^2.6.1
+  scrollable_positioned_list: ^0.3.8
+  http: ^1.3.0
+  shared_preferences: ^2.5.1
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  dio: ^5.8.0+1
+  path_provider: ^2.1.5
+  build_runner: ^2.4.14
+  hooks_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
-  flutter_hooks:
-  flutter_image_compress:
-  android_intent_plus:
-  speech_to_text:
-  fluttertoast:
+  flutter_hooks: ^0.20.5
+  flutter_image_compress: ^2.4.0
+  android_intent_plus: ^5.3.0
+  speech_to_text: ^7.0.0
+  fluttertoast: ^8.2.12
   flutter_broadcasts:
     git:
       url: https://github.com/KRTirtho/flutter_broadcasts.git
       ref: main
-  webfeed:
-  package_info_plus:
-  url_launcher:
+  webfeed: ^0.7.0
+  package_info_plus: ^8.3.0
+  url_launcher: ^6.3.1
   cupertino_icons: ^1.0.8
   flutter_secure_storage: ^9.2.4
+  permission_handler: ^11.3.0
+  device_info_plus: ^9.1.2
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  riverpod_generator:
-  freezed:
+  riverpod_generator: ^2.6.4
+  freezed: ^2.5.8
   json_serializable: ^6.7.1
 
 

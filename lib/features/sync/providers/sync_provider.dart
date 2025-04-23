@@ -656,7 +656,7 @@ class SyncNotifier extends AsyncNotifier<void> {
         if (tmdbId == null) continue;
         
         ref.read(syncStatusProvider.notifier).state = 
-            'Checking show: ${show['title'] ?? 'Unknown'}';
+            'Checking for new episodes: ${show['title'] ?? 'Unknown'}';
         
         try {
           final existingShow = existingShows[tmdbId];
