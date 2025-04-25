@@ -15,14 +15,12 @@ class ApiKeysService {
   
   static const _defaultValue = 'your_key_here';
   
-  // Required API keys that must be set
   static const _requiredKeys = [
     'tvdb',
     'tmdb',
     'premiumize',
   ];
 
-  // Optional keys where at least one must be set
   static const _optionalKeys = [
     'simkl',
     'trakt',
@@ -39,19 +37,19 @@ class ApiKeysService {
       final deviceInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = deviceInfo.version.sdkInt;
 
-      if (sdkInt >= 30) { // Android 11 and above
+      if (sdkInt >= 30) {
         if (!await Permission.manageExternalStorage.isGranted) {
           final result = await Permission.manageExternalStorage.request();
           return result.isGranted;
         }
         return true;
-      } else if (sdkInt >= 29) { // Android 10
+      } else if (sdkInt >= 29) {
         if (!await Permission.storage.isGranted) {
           final result = await Permission.storage.request();
           return result.isGranted;
         }
         return true;
-      } else { // Below Android 10
+      } else {
         if (!await Permission.storage.isGranted) {
           final result = await Permission.storage.request();
           return result.isGranted;
@@ -123,7 +121,6 @@ $_orionPrefix your_key_here
       final missingOptional = <String>[];
       final hasOptionalKey = <String>[];
 
-      // Check required keys
       for (final key in _requiredKeys) {
         bool found = false;
         for (final line in lines) {
@@ -141,7 +138,6 @@ $_orionPrefix your_key_here
         }
       }
 
-      // Check optional keys
       for (final key in _optionalKeys) {
         bool found = false;
         for (final line in lines) {
@@ -160,7 +156,6 @@ $_orionPrefix your_key_here
         }
       }
 
-      // If at least one optional key is set, clear missingOptional
       if (hasOptionalKey.isNotEmpty) {
         missingOptional.clear();
       }

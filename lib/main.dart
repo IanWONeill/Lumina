@@ -25,7 +25,6 @@ final tvShowCountProvider = StateNotifierProvider<CountNotifier, int>((ref) => C
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Check for storage permission first
   final hasPermission = await ApiKeysService.hasStoragePermission();
   if (!hasPermission) {
     final deviceInfo = await DeviceInfoPlugin().androidInfo;
@@ -33,9 +32,9 @@ void main() async {
     
     String permissionInstructions = 'Please grant storage permission in your device settings and restart the app.';
     if (sdkInt >= 30) {
-      permissionInstructions = 'Please go to Settings > Apps > Debrid Player > Permissions > Files and media > Allow management of all files and restart the app.';
+      permissionInstructions = 'Please go to Settings > Apps > Lumina > Permissions > Files and media > Allow management of all files and restart the app.';
     } else if (sdkInt >= 29) {
-      permissionInstructions = 'Please go to Settings > Apps > Debrid Player > Permissions > Storage > Allow and restart the app.';
+      permissionInstructions = 'Please go to Settings > Apps > Lumina > Permissions > Storage > Allow and restart the app.';
     }
 
     runApp(
@@ -199,29 +198,7 @@ class InitApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(syncScheduleProvider);
     
-    return WillPopScope(
-      onWillPop: () async {
-        final shouldPop = await showDialog<bool>(
-          context: navigatorKey.currentContext ?? context,
-          builder: (context) => AlertDialog(
-            title: const Text('Exit Lumina?'),
-            content: const Text('Are you sure you want to exit?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Exit'),
-              ),
-            ],
-          ),
-        );
-        return shouldPop ?? false;
-      },
-      child: const HomeScreen(),
-    );
+    return const HomeScreen();
   }
 }
 
@@ -290,7 +267,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         content: const SizedBox(
           height: 20,
           child: Center(
-            child: Text('Are you sure you want to exit??'),
+            child: Text('Are you sure you want to exit?'),
           ),
         ),
         actionsAlignment: MainAxisAlignment.center,

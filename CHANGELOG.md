@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.8 [4/24/2025]
+
+### Changes
+- Cleaned up the search query
+- Added error messages for syncing
+- Added storage check on startup
+- Fixed show names and overview updates
+- Made shows and genre search ignore "the"
+
 ## 1.0.7 [4/19/2025]
 
 ### Fixes

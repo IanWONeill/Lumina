@@ -1,5 +1,5 @@
 {
-    "version": "1.0.7",
-    "url": "https://github.com/Spark-NV/Lumina/releases/download/v1.0.7/Lumina.apk",
-    "notes": "Fixes:\n - Fixed streams sometimes loading incorrectly"
+    "version": "1.0.8",
+    "url": "https://github.com/Spark-NV/Lumina/releases/download/v1.0.8/Lumina.apk",
+    "notes": "Changes:\n - Cleaned up the search query\n - Added error messages for syncing\n - Added storage check on startup\n - Fixed show names and overview updates\n - Made shows and genre search ignore -the-"
 }

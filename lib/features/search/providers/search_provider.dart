@@ -100,6 +100,16 @@ class SearchResultsNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         'media_type': 'movie',
       }).toList();
       
+      results.sort((a, b) {
+        final aTitle = a['original_title'].toString().toLowerCase();
+        final bTitle = b['original_title'].toString().toLowerCase();
+        
+        final aSortTitle = aTitle.startsWith('the ') ? aTitle.substring(4) : aTitle;
+        final bSortTitle = bTitle.startsWith('the ') ? bTitle.substring(4) : bTitle;
+        
+        return aSortTitle.compareTo(bSortTitle);
+      });
+      
       developer.log(
         'Genre search completed',
         name: 'SearchResultsNotifier',

@@ -3,9 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import '../providers/tv_shows_provider.dart';
 import '../providers/alphabet_navigation_provider.dart';
+import '../providers/episodes_provider.dart';
 import '../screens/seasons_screen.dart';
+import '../models/tv_show.dart';
+import 'dart:developer' as developer;
 
 class ShowListPanel extends HookConsumerWidget {
   const ShowListPanel({super.key});
@@ -48,12 +53,7 @@ class ShowListPanel extends HookConsumerWidget {
                   onKey: (node, event) {
                     if (event is RawKeyDownEvent &&
                         event.logicalKey == LogicalKeyboardKey.select) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SeasonsScreen(show: show),
-                        ),
-                      );
+                      _handleShowSelection(context, ref, show);
                       return KeyEventResult.handled;
                     }
                     return KeyEventResult.ignored;
@@ -105,6 +105,100 @@ class ShowListPanel extends HookConsumerWidget {
         const _AlphabetSelector(),
       ],
     );
+  }
+
+  Future<void> _handleShowSelection(BuildContext context, WidgetRef ref, TVShow show) async {
+    final timestampDir = Directory('/storage/emulated/0/Debrid_Player/tvupdates');
+    if (!await timestampDir.exists()) {
+      await timestampDir.create(recursive: true);
+    }
+    final timestampFile = File('${timestampDir.path}/${show.tmdbId}.txt');
+    bool shouldUpdate = true;
+    
+    if (await timestampFile.exists()) {
+      final timestamp = await timestampFile.readAsString();
+      final lastUpdate = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final difference = now.difference(lastUpdate);
+      
+      developer.log(
+        'Checking metadata update timestamp',
+        name: 'ShowListPanel',
+        error: {
+          'showId': show.tmdbId,
+          'lastUpdate': lastUpdate.toIso8601String(),
+          'hoursSinceUpdate': difference.inHours,
+        },
+      );
+      
+      shouldUpdate = difference.inHours >= 36;
+    }
+    
+    if (!shouldUpdate) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SeasonsScreen(show: show),
+        ),
+      );
+      return;
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Checking for new episodes in ${show.originalName}...'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    
+    ref.read(tVShowsProvider.notifier).updateEpisodeMetadata(show.tmdbId).then((updatedCount) {
+      timestampFile.writeAsString(DateTime.now().toIso8601String());
+      
+      if (updatedCount > 0) {
+        ref.invalidate(tVShowsProvider);
+        ref.invalidate(selectedTVShowProvider);
+        ref.invalidate(seasonEpisodesProvider);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Found $updatedCount updated episodes in ${show.originalName}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SeasonsScreen(show: show),
+        ),
+      );
+    }).catchError((error) {
+      developer.log(
+        'Failed to update episode metadata',
+        name: 'ShowListPanel',
+        error: {
+          'showId': show.tmdbId,
+          'error': error.toString(),
+        },
+        level: 900,
+      );
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to check for new episodes: ${error.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SeasonsScreen(show: show),
+        ),
+      );
+    });
   }
 }
 

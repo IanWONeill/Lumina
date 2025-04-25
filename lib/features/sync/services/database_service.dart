@@ -852,10 +852,14 @@ class DatabaseService {
 
   Future<List<Map<String, dynamic>>> getAllTVShows() async {
     final db = await database;
-    return await db.query(
-      'tv_shows',
-      orderBy: 'original_name ASC',
-    );
+    return await db.rawQuery('''
+      SELECT * FROM tv_shows 
+      ORDER BY CASE 
+        WHEN LOWER(original_name) LIKE 'the %' 
+        THEN SUBSTR(original_name, 5) 
+        ELSE original_name 
+      END ASC
+    ''');
   }
 
   Future<List<Map<String, dynamic>>> getEpisodesForSeason(int seasonId) async {
@@ -1643,6 +1647,29 @@ class DatabaseService {
       data,
       where: 'tmdb_id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> updateEpisodeMetadata(int episodeId, String name, String? overview) async {
+    final db = await database;
+    await db.update(
+      'episodes',
+      {
+        'name': name,
+        'overview': overview,
+      },
+      where: 'id = ?',
+      whereArgs: [episodeId],
+    );
+
+    developer.log(
+      'Episode metadata updated',
+      name: 'DatabaseService',
+      error: {
+        'episodeId': episodeId,
+        'name': name,
+        'hasOverview': overview != null,
+      },
     );
   }
 }

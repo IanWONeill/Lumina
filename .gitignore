@@ -51,6 +51,7 @@ app.*.map.json
 *.reflectable.dart
 *.inject.summary
 *.inject.dart
+pubspec.lock
 
 # Coverage files
 coverage/
