@@ -52,7 +52,9 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   riverpod_generator: ^2.6.4
   freezed: ^2.5.8
-  json_serializable: ^6.7.1
+  json_serializable: ^6.9.5
+  analyzer: ^7.4.5
+  analyzer_plugin: ^0.13.1
 
 
 flutter:
