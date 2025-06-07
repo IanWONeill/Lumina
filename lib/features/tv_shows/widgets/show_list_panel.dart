@@ -10,6 +10,7 @@ import '../providers/alphabet_navigation_provider.dart';
 import '../providers/episodes_provider.dart';
 import '../screens/seasons_screen.dart';
 import '../models/tv_show.dart';
+import 'package:debrid_player/features/database/providers/database_provider.dart';
 import 'dart:developer' as developer;
 
 class ShowListPanel extends HookConsumerWidget {
@@ -155,8 +156,6 @@ class ShowListPanel extends HookConsumerWidget {
       timestampFile.writeAsString(DateTime.now().toIso8601String());
       
       if (updatedCount > 0) {
-        ref.invalidate(tVShowsProvider);
-        ref.invalidate(selectedTVShowProvider);
         ref.invalidate(seasonEpisodesProvider);
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -167,12 +166,14 @@ class ShowListPanel extends HookConsumerWidget {
         );
       }
       
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => SeasonsScreen(show: show),
-        ),
-      );
+      Future.delayed(const Duration(milliseconds: 100), () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SeasonsScreen(show: show),
+          ),
+        );
+      });
     }).catchError((error) {
       developer.log(
         'Failed to update episode metadata',

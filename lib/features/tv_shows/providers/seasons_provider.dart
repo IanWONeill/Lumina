@@ -1,6 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../models/season.dart';
-import '../../sync/services/database_service.dart';
+import '../../database/providers/database_provider.dart';
 
 part 'seasons_provider.g.dart';
 
@@ -8,7 +8,7 @@ part 'seasons_provider.g.dart';
 class Seasons extends _$Seasons {
   @override
   Future<List<Season>> build(int showId) async {
-    final db = DatabaseService();
+    final db = ref.watch(databaseServiceProvider);
     final seasons = await db.getSeasonsForShow(showId);
     return seasons.map((map) => Season.fromMap(map)).toList();
   }

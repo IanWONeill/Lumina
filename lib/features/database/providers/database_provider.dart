@@ -1,7 +1,9 @@
-import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../sync/services/database_service.dart';
 
-final databaseServiceProvider = Provider<DatabaseService>((ref) {
-  final db = DatabaseService();
-  return db;
-}); 
+part 'database_provider.g.dart';
+
+@Riverpod(keepAlive: true)
+DatabaseService databaseService(DatabaseServiceRef ref) {
+  return DatabaseService();
+} 

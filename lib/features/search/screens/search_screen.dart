@@ -544,7 +544,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               );
 
               try {
-                final show = await ref.read(tvShowDetailsProvider(tmdbId).future);
+                final show = await ref.read(tVShowDetailsProvider(tmdbId).future);
                 
                 if (context.mounted) Navigator.pop(context);
 

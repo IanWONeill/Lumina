@@ -1,32 +1,32 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:developer' as developer;
 import '../models/tv_show.dart';
-import '../../sync/services/database_service.dart';
 import '../../sync/services/tmdb_service.dart';
 import '../../sync/services/tvdb_service.dart';
 import '../../settings/services/api_keys_service.dart';
+import '../../database/providers/database_provider.dart';
+import 'package:debrid_player/features/tv_shows/providers/episodes_provider.dart';
 
 part 'tv_shows_provider.g.dart';
 
 @Riverpod(keepAlive: true)
 class TVShows extends _$TVShows {
-  late final DatabaseService _dbService;
   late final TMDBService _tmdbService;
   late final TVDBService? _tvdbService;
 
   @override
   Future<List<TVShow>> build() async {
-    _dbService = DatabaseService();
+    final db = ref.watch(databaseServiceProvider);
     final apiKeys = await ApiKeysService.readApiKeys();
     
     if (apiKeys['tmdb'] == null) {
       throw Exception('TMDB API key not found');
     }
     
-    _tmdbService = TMDBService(apiKeys['tmdb']!, _dbService, null);
+    _tmdbService = TMDBService(apiKeys['tmdb']!, db, null);
     
     if (apiKeys['tvdb'] != null) {
-      _tvdbService = TVDBService(apiKeys['tvdb']!, _dbService);
+      _tvdbService = TVDBService(apiKeys['tvdb']!, db);
       try {
         await _tvdbService!.authenticate();
       } catch (e) {
@@ -40,23 +40,26 @@ class TVShows extends _$TVShows {
       }
     }
 
-    final shows = await _dbService.getAllTVShows();
+    final shows = await db.getAllTVShows();
     return shows.map((map) => TVShow.fromMap(map)).toList();
   }
 
   Future<void> addTVShow(Map<String, dynamic> showData) async {
-    await _dbService.insertTVShow(showData);
+    final db = ref.watch(databaseServiceProvider);
+    await db.insertTVShow(showData);
     ref.invalidateSelf();
   }
 
   Future<void> updateTVShow(int id, Map<String, dynamic> data) async {
-    await _dbService.updateTVShowDetails(data);
+    final db = ref.watch(databaseServiceProvider);
+    await db.updateTVShowDetails(data);
     ref.invalidateSelf();
   }
 
   Future<int> updateEpisodeMetadata(int showId) async {
     try {
-      final show = await _dbService.getTVShowDetails(showId);
+      final db = ref.watch(databaseServiceProvider);
+      final show = await db.getTVShowDetails(showId);
       if (show == null) {
         throw Exception('Show not found');
       }
@@ -103,7 +106,7 @@ class TVShows extends _$TVShows {
           final seasonNumber = season['season_number'] as int;
           final episodes = season['episodes'] as List;
           
-          final dbSeasons = await _dbService.getSeasonsForShow(showId);
+          final dbSeasons = await db.getSeasonsForShow(showId);
           final dbSeason = dbSeasons.firstWhere(
             (s) => s['season_number'] == seasonNumber,
             orElse: () => throw Exception('Season $seasonNumber not found in database'),
@@ -121,7 +124,7 @@ class TVShows extends _$TVShows {
             },
           );
           
-          final existingEpisodes = await _dbService.getEpisodesForSeason(seasonId);
+          final existingEpisodes = await db.getEpisodesForSeason(seasonId);
           final existingEpisodeMap = {
             for (var ep in existingEpisodes)
               ep['episode_number'] as int: ep
@@ -157,7 +160,7 @@ class TVShows extends _$TVShows {
                   },
                 );
                 
-                await _dbService.updateEpisodeMetadata(
+                await db.updateEpisodeMetadata(
                   existingEpisode['id'],
                   episode['name'],
                   episode['overview'],
@@ -203,7 +206,7 @@ class TVShows extends _$TVShows {
           final seasonDetails = await _tmdbService.getSeasonDetails(showId, seasonNum);
           final episodes = seasonDetails['episodes'] as List;
           
-          final dbSeasons = await _dbService.getSeasonsForShow(showId);
+          final dbSeasons = await db.getSeasonsForShow(showId);
           final dbSeason = dbSeasons.firstWhere(
             (s) => s['season_number'] == seasonNum,
             orElse: () => throw Exception('Season $seasonNum not found in database'),
@@ -221,7 +224,7 @@ class TVShows extends _$TVShows {
             },
           );
           
-          final existingEpisodes = await _dbService.getEpisodesForSeason(seasonId);
+          final existingEpisodes = await db.getEpisodesForSeason(seasonId);
           final existingEpisodeMap = {
             for (var ep in existingEpisodes)
               ep['episode_number'] as int: ep
@@ -257,7 +260,7 @@ class TVShows extends _$TVShows {
                   },
                 );
                 
-                await _dbService.updateEpisodeMetadata(
+                await db.updateEpisodeMetadata(
                   existingEpisode['id'],
                   episode['name'],
                   episode['overview'],

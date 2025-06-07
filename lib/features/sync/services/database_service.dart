@@ -5,6 +5,14 @@ import 'package:sqflite/sqflite.dart';
 
 class DatabaseService {
   static Database? _database;
+  static DatabaseService? _instance;
+  
+  factory DatabaseService() {
+    _instance ??= DatabaseService._internal();
+    return _instance!;
+  }
+  
+  DatabaseService._internal();
   
   Future<Database> get database async {
     if (_database != null) return _database!;

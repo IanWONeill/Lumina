@@ -1,11 +1,14 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import '../../sync/services/database_service.dart';
+import '../../database/providers/database_provider.dart';
 
 part 'cast_provider.g.dart';
 
 @riverpod
-Future<List<Map<String, dynamic>>> showCast(ShowCastRef ref, int showId) async {
-  final db = DatabaseService();
-  final cast = await db.getTVShowCast(showId);
-  return cast.take(3).toList();
+class ShowCast extends _$ShowCast {
+  @override
+  Future<List<Map<String, dynamic>>> build(int showId) async {
+    final db = ref.watch(databaseServiceProvider);
+    final cast = await db.getTVShowCast(showId);
+    return cast.take(3).toList();
+  }
 } 
