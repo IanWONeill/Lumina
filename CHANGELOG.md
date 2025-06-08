@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.9 [6/08/2025]
+
+### Changes
+- Fixed new episode check breaking everything
+- Fixed weird graphical bugs
+
 ## 1.0.8 [4/24/2025]
 
 ### Changes

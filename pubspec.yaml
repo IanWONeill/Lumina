@@ -5,7 +5,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 # Build configuration flags
 move_release_apk_to_desktop: true
-version: 1.0.8
+version: 1.0.9
 
 
 environment:
@@ -37,7 +37,7 @@ dependencies:
     git:
       url: https://github.com/KRTirtho/flutter_broadcasts.git
       ref: main
-  webfeed: ^0.7.0
+  rss_dart: ^1.0.13
   package_info_plus: ^8.3.0
   url_launcher: ^6.3.1
   cupertino_icons: ^1.0.8
