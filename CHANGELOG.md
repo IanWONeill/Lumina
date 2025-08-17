@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.10 [8/17/2025]
+
+### Changes
+- Fixed new episode check not adding new seasons
+- Fixed missing episode metadata breaking things
+- Added version string in settings
+
 ## 1.0.9 [6/08/2025]
 
 ### Changes

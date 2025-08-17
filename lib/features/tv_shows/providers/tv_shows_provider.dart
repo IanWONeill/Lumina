@@ -107,11 +107,41 @@ class TVShows extends _$TVShows {
           final episodes = season['episodes'] as List;
           
           final dbSeasons = await db.getSeasonsForShow(showId);
-          final dbSeason = dbSeasons.firstWhere(
-            (s) => s['season_number'] == seasonNumber,
-            orElse: () => throw Exception('Season $seasonNumber not found in database'),
-          );
-          final seasonId = dbSeason['id'] as int;
+          final dbSeason = dbSeasons.where((s) => s['season_number'] == seasonNumber).toList();
+          
+          int seasonId;
+          if (dbSeason.isEmpty) {
+            developer.log(
+              'Season not found in database, adding it',
+              name: 'TVShowsProvider',
+              error: {
+                'showId': showId,
+                'seasonNumber': seasonNumber,
+                'availableSeasons': dbSeasons.map((s) => s['season_number']).toList(),
+              },
+            );
+            
+            // Insert the missing season
+            seasonId = await db.insertSeason(season, showId);
+            
+            // Insert all episodes for this season
+            for (final episode in episodes) {
+              await db.insertEpisode(episode, showId, seasonId);
+            }
+            
+            developer.log(
+              'Added missing season and episodes',
+              name: 'TVShowsProvider',
+              error: {
+                'showId': showId,
+                'seasonNumber': seasonNumber,
+                'seasonId': seasonId,
+                'episodeCount': episodes.length,
+              },
+            );
+          } else {
+            seasonId = dbSeason.first['id'] as int;
+          }
           
           developer.log(
             'Processing anime season',
@@ -207,11 +237,50 @@ class TVShows extends _$TVShows {
           final episodes = seasonDetails['episodes'] as List;
           
           final dbSeasons = await db.getSeasonsForShow(showId);
-          final dbSeason = dbSeasons.firstWhere(
-            (s) => s['season_number'] == seasonNum,
-            orElse: () => throw Exception('Season $seasonNum not found in database'),
-          );
-          final seasonId = dbSeason['id'] as int;
+          final dbSeason = dbSeasons.where((s) => s['season_number'] == seasonNum).toList();
+          
+          int seasonId;
+          if (dbSeason.isEmpty) {
+            developer.log(
+              'Season not found in database, adding it',
+              name: 'TVShowsProvider',
+              error: {
+                'showId': showId,
+                'seasonNumber': seasonNum,
+                'availableSeasons': dbSeasons.map((s) => s['season_number']).toList(),
+              },
+            );
+            
+            // Create season data from TMDB response
+            final seasonData = {
+              'id': seasonDetails['id'],
+              'season_number': seasonNum,
+              'name': seasonDetails['name'],
+              'overview': seasonDetails['overview'],
+              'poster_path': seasonDetails['poster_path'],
+            };
+            
+            // Insert the missing season
+            seasonId = await db.insertSeason(seasonData, showId);
+            
+            // Insert all episodes for this season
+            for (final episode in episodes) {
+              await db.insertEpisode(episode, showId, seasonId);
+            }
+            
+            developer.log(
+              'Added missing season and episodes',
+              name: 'TVShowsProvider',
+              error: {
+                'showId': showId,
+                'seasonNumber': seasonNum,
+                'seasonId': seasonId,
+                'episodeCount': episodes.length,
+              },
+            );
+          } else {
+            seasonId = dbSeason.first['id'] as int;
+          }
           
           developer.log(
             'Retrieved TMDB season details',
@@ -307,7 +376,10 @@ class TVShows extends _$TVShows {
       developer.log(
         'Failed to update episode metadata',
         name: 'TVShowsProvider',
-        error: {'showId': showId, 'error': e.toString()},
+        error: {
+          'showId': showId,
+          'error': e.toString(),
+        },
         stackTrace: st,
         level: 1000,
       );

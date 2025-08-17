@@ -291,8 +291,8 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "63931dfe06733d4fb7452e9981e1f0b23414d97a"
-      url: "https://github.com/KRTirtho/flutter_broadcasts.git"
+      resolved-ref: "53081d1334429300c978287fb278781364044196"
+      url: "https://github.com/pakhyunw/flutter_broadcasts.git"
     source: git
     version: "0.4.0"
   flutter_hooks:

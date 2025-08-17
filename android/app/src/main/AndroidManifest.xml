@@ -11,14 +11,6 @@
         android:label="Lumina"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-		<receiver
-            android:name="com.example.debrid_player.CustomBroadcastReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.brouken.player.PLAYBACK_UPDATE" />
-                <action android:name="com.brouken.player.*" />
-            </intent-filter>
-        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -180,10 +180,13 @@ class MediaDetailsScreen extends HookConsumerWidget {
                             text: 'Episode ${media.episodeNumber}',
                           ),
                           const SizedBox(width: 24),
-                          _MetadataItem(
-                            icon: Icons.calendar_today,
-                            text: media.airDate,
-                          ),
+                          if (media.airDate != null) ...[
+                            const SizedBox(width: 24),
+                            _MetadataItem(
+                              icon: Icons.calendar_today,
+                              text: media.airDate!,
+                            ),
+                          ],
                         ],
                       ],
                     ),
@@ -201,7 +204,7 @@ class MediaDetailsScreen extends HookConsumerWidget {
                         controller: scrollController,
                         physics: const NeverScrollableScrollPhysics(),
                         child: Text(
-                          media.overview,
+                          media.overview ?? 'No overview available',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Colors.white.withOpacity(0.9),
                           ),
@@ -241,14 +244,17 @@ class MediaDetailsScreen extends HookConsumerWidget {
                                   children: [
                                     CircleAvatar(
                                       radius: 30,
-                                      backgroundImage: FileImage(
-                                        File('/storage/emulated/0/Debrid_Player/metadata/actors/${actor['actor_id']}/${actor['actor_id']}.webp'),
-                                      ),
+                                      backgroundImage: actor['actor_id'] != null 
+                                        ? FileImage(
+                                            File('/storage/emulated/0/Debrid_Player/metadata/actors/${actor['actor_id']}/${actor['actor_id']}.webp'),
+                                          )
+                                        : null,
                                       onBackgroundImageError: (_, __) => const Icon(Icons.person, color: Colors.white),
+                                      child: actor['actor_id'] == null ? const Icon(Icons.person, color: Colors.white) : null,
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      actor['name'] as String,
+                                      actor['name'] as String? ?? 'Unknown',
                                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: Colors.white.withOpacity(0.7),
                                       ),

@@ -5,7 +5,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 # Build configuration flags
 move_release_apk_to_desktop: true
-version: 1.0.9
+version: 1.0.10
 
 
 environment:
@@ -35,7 +35,7 @@ dependencies:
   fluttertoast: ^8.2.12
   flutter_broadcasts:
     git:
-      url: https://github.com/KRTirtho/flutter_broadcasts.git
+      url: https://github.com/pakhyunw/flutter_broadcasts.git
       ref: main
   rss_dart: ^1.0.13
   package_info_plus: ^8.3.0

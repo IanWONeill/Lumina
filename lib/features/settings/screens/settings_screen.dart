@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/settings_provider.dart';
 import '../providers/orionoid_provider.dart';
 import 'dart:convert';
@@ -10,45 +11,89 @@ import '../widgets/stream_providers_settings_section.dart';
 import '../widgets/torrentio_settings_section.dart';
 import '../widgets/rss_settings_section.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _version = packageInfo.version;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final simklAuthState = ref.watch(simklAuthProvider);
     final orionoidAuthState = ref.watch(orionoidAuthProvider);
 
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAuthSection(
-              'SIMKL',
-              simklAuthState,
-              () => ref.read(simklAuthProvider.notifier).startAuth(),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildAuthSection(
+                  'SIMKL',
+                  simklAuthState,
+                  () => ref.read(simklAuthProvider.notifier).startAuth(),
+                ),
+                const SizedBox(height: 40),
+                _buildAuthSection(
+                  'Orionoid',
+                  orionoidAuthState,
+                  () => ref.read(orionoidAuthProvider.notifier).startAuth(),
+                ),
+                const SizedBox(height: 40),
+                const OrionSettingsSection(),
+                const SizedBox(height: 40),
+                const TorrentioSettingsSection(),
+                const SizedBox(height: 40),
+                const StreamProvidersSettingsSection(),
+                const SizedBox(height: 40),
+                const SyncSettingsSection(),
+                const SizedBox(height: 40),
+                const SortSettingsSection(),
+                const SizedBox(height: 40),
+                const RSSSettingsSection(),
+              ],
             ),
-            const SizedBox(height: 40),
-            _buildAuthSection(
-              'Orionoid',
-              orionoidAuthState,
-              () => ref.read(orionoidAuthProvider.notifier).startAuth(),
+          ),
+          // Version display at top right
+          Positioned(
+            top: 24,
+            right: 24,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'v$_version',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
-            const SizedBox(height: 40),
-            const OrionSettingsSection(),
-            const SizedBox(height: 40),
-            const TorrentioSettingsSection(),
-            const SizedBox(height: 40),
-            const StreamProvidersSettingsSection(),
-            const SizedBox(height: 40),
-            const SyncSettingsSection(),
-            const SizedBox(height: 40),
-            const SortSettingsSection(),
-            const SizedBox(height: 40),
-            const RSSSettingsSection(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
