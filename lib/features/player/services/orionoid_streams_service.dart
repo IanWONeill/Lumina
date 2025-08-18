@@ -29,6 +29,48 @@ class OrionoidStreamsService {
     int? seasonNumber,
     int? episodeNumber,
   }) async {
+    // Try with filters first
+    final result = await _makeRequest(
+      imdbId: imdbId,
+      isMovie: isMovie,
+      seasonNumber: seasonNumber,
+      episodeNumber: episodeNumber,
+      useFilters: true,
+    );
+
+    // Check if we got any streams
+    final streams = result['data']?['streams'] as List<dynamic>?;
+    if (streams != null && streams.isNotEmpty) {
+      developer.log(
+        'Found streams with filters',
+        name: 'OrionoidStreams',
+        error: {'count': streams.length},
+      );
+      return result;
+    }
+
+    // If no streams found, try without filters
+    developer.log(
+      'No streams found with filters, trying without filters',
+      name: 'OrionoidStreams',
+    );
+
+    return await _makeRequest(
+      imdbId: imdbId,
+      isMovie: isMovie,
+      seasonNumber: seasonNumber,
+      episodeNumber: episodeNumber,
+      useFilters: false,
+    );
+  }
+
+  Future<Map<String, dynamic>> _makeRequest({
+    required String imdbId,
+    required bool isMovie,
+    int? seasonNumber,
+    int? episodeNumber,
+    required bool useFilters,
+  }) async {
     
     final Map<String, String> requestData = {
       'token': _token,
@@ -39,16 +81,20 @@ class OrionoidStreamsService {
       'idimdb': imdbId,
       'limitcount': settings.limitCount.toString(),
       'streamtype': settings.streamTypesParam,
-      'filesize': settings.fileSizeParam,
       'sortvalue': settings.sortValue,
     };
 
-    if (settings.audioLanguagesParam != null) {
-      requestData['audiolanguages'] = settings.audioLanguagesParam!;
-    }
+    // Only apply filters if useFilters is true
+    if (useFilters) {
+      requestData['filesize'] = settings.fileSizeParam;
+      
+      if (settings.audioLanguagesParam != null) {
+        requestData['audiolanguages'] = settings.audioLanguagesParam!;
+      }
 
-    if (settings.filematchParam != null) {
-      requestData['filematch'] = settings.filematchParam!;
+      if (settings.filematchParam != null) {
+        requestData['filematch'] = settings.filematchParam!;
+      }
     }
 
     if (!isMovie) {
@@ -69,6 +115,7 @@ class OrionoidStreamsService {
         'imdbId': imdbId,
         'season': seasonNumber,
         'episode': episodeNumber,
+        'useFilters': useFilters,
       },
     );
 
@@ -88,6 +135,7 @@ class OrionoidStreamsService {
       error: {
         'statusCode': response.statusCode,
         'success': response.statusCode == 200,
+        'useFilters': useFilters,
       },
     );
 

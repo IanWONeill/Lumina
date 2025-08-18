@@ -80,11 +80,23 @@ class Streams extends _$Streams {
       isMovie ? settings.movies : settings.episodes,
     );
      
-    return service.getStreams(
+    final result = await service.getStreams(
       imdbId: imdbId,
       isMovie: isMovie,
       seasonNumber: seasonNumber,
       episodeNumber: episodeNumber,
     );
+
+    // Add filter status information
+    final streams = result['data']?['streams'] as List<dynamic>?;
+    final usedFilters = streams != null && streams.isNotEmpty;
+    
+    return {
+      ...result,
+      'filterStatus': {
+        'usedFilters': usedFilters,
+        'provider': 'Orionoid',
+      },
+    };
   }
 } 

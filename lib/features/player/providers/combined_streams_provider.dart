@@ -28,10 +28,88 @@ Future<Map<String, dynamic>> combinedStreams(
     }
 
     if (futures.isEmpty) {
-      return {'data': {'streams': []}};
+      developer.log(
+        'No stream providers enabled',
+        name: 'CombinedStreamsProvider',
+        error: {'orionoid': orionoidEnabled, 'torrentio': torrentioEnabled},
+      );
+      return {
+        'data': {'streams': []},
+        'filterStatus': {
+          'usedFilters': false,
+          'providers': [],
+        },
+      };
     }
 
     final results = await Future.wait(futures);
+    
+    // Check if any streams were found
+    int totalStreams = 0;
+    int orionoidStreams = 0;
+    int torrentioStreams = 0;
+    List<Map<String, dynamic>> filterStatuses = [];
+    
+    if (orionoidEnabled) {
+      final orionoidData = results[orionoidEnabled && torrentioEnabled ? 0 : 0];
+      final streams = orionoidData['data']?['streams'] as List<dynamic>?;
+      orionoidStreams = streams?.length ?? 0;
+      totalStreams += orionoidStreams;
+      
+      if (orionoidData['filterStatus'] != null) {
+        filterStatuses.add(orionoidData['filterStatus'] as Map<String, dynamic>);
+      }
+    }
+    
+    if (torrentioEnabled) {
+      final torrentioData = results[orionoidEnabled && torrentioEnabled ? 1 : 0];
+      final streams = torrentioData['streams'] as List<dynamic>?;
+      torrentioStreams = streams?.length ?? 0;
+      totalStreams += torrentioStreams;
+      
+      if (torrentioData['filterStatus'] != null) {
+        filterStatuses.add(torrentioData['filterStatus'] as Map<String, dynamic>);
+      }
+    }
+    
+    // Determine overall filter status
+    final allUsedFilters = filterStatuses.every((status) => status['usedFilters'] == true);
+    final someUsedFilters = filterStatuses.any((status) => status['usedFilters'] == true);
+    final noneUsedFilters = filterStatuses.every((status) => status['usedFilters'] == false);
+    
+    String overallFilterStatus;
+    if (allUsedFilters) {
+      overallFilterStatus = 'all_filtered';
+    } else if (someUsedFilters) {
+      overallFilterStatus = 'mixed';
+    } else {
+      overallFilterStatus = 'none_filtered';
+    }
+    
+    developer.log(
+      'Stream search results',
+      name: 'CombinedStreamsProvider',
+      error: {
+        'totalStreams': totalStreams,
+        'orionoidStreams': orionoidStreams,
+        'torrentioStreams': torrentioStreams,
+        'orionoidEnabled': orionoidEnabled,
+        'torrentioEnabled': torrentioEnabled,
+        'filterStatuses': filterStatuses,
+        'overallFilterStatus': overallFilterStatus,
+      },
+    );
+    
+    if (totalStreams == 0) {
+      developer.log(
+        'No streams found from any provider',
+        name: 'CombinedStreamsProvider',
+        error: {
+          'mediaType': isMovie ? 'movie' : 'show',
+          'mediaId': isMovie ? media.tmdbId : media.id,
+        },
+      );
+    }
     
     if (orionoidEnabled && !torrentioEnabled) {
       return results[0];
@@ -40,7 +118,7 @@ Future<Map<String, dynamic>> combinedStreams(
     if (!orionoidEnabled && torrentioEnabled) {
       final torrentioData = results[0];
       
-      final torrentioStreams = (torrentioData['streams'] as List<dynamic>)
+      final torrentioStreamsList = (torrentioData['streams'] as List<dynamic>)
           .map((stream) {
             final quality = stream['name'].toString().contains('1080p') 
                 ? 'hd1080' 
@@ -125,7 +203,12 @@ Future<Map<String, dynamic>> combinedStreams(
               'title': await _getShowTitle(media.showId),
             },
           } : null,
-          'streams': torrentioStreams,
+          'streams': torrentioStreamsList,
+        },
+        'filterStatus': {
+          'overallStatus': torrentioData['filterStatus']?['usedFilters'] == true ? 'all_filtered' : 'none_filtered',
+          'providers': [torrentioData['filterStatus']?['provider'] ?? 'Torrentio'],
+          'details': [torrentioData['filterStatus'] ?? {'provider': 'Torrentio', 'usedFilters': false}],
         },
       };
     }
@@ -133,7 +216,7 @@ Future<Map<String, dynamic>> combinedStreams(
     final orionoidData = results[0];
     final torrentioData = results[1];
 
-    final torrentioStreams = (torrentioData['streams'] as List<dynamic>)
+    final torrentioStreamsList = (torrentioData['streams'] as List<dynamic>)
         .map((stream) {
           final quality = stream['name'].toString().contains('1080p') 
               ? 'hd1080' 
@@ -194,19 +277,26 @@ Future<Map<String, dynamic>> combinedStreams(
 
     if (orionoidData['data']?['streams'] != null) {
       final List<dynamic> existingStreams = orionoidData['data']['streams'];
-      existingStreams.addAll(torrentioStreams);
+      existingStreams.addAll(torrentioStreamsList);
       
       developer.log(
         'Combined streams count',
         name: 'CombinedStreamsProvider',
         error: {
-          'orionoid': existingStreams.length - torrentioStreams.length,
-          'torrentio': torrentioStreams.length,
+          'orionoid': existingStreams.length - torrentioStreamsList.length,
+          'torrentio': torrentioStreamsList.length,
           'total': existingStreams.length,
         },
       );
       
-      return orionoidData;
+      return {
+        ...orionoidData,
+        'filterStatus': {
+          'overallStatus': overallFilterStatus,
+          'providers': filterStatuses.map((status) => status['provider'] as String).toList(),
+          'details': filterStatuses,
+        },
+      };
     } else {
       return {
         'data': {
@@ -234,7 +324,12 @@ Future<Map<String, dynamic>> combinedStreams(
               'title': await _getShowTitle(media.showId),
             },
           } : null,
-          'streams': torrentioStreams,
+          'streams': torrentioStreamsList,
+        },
+        'filterStatus': {
+          'overallStatus': overallFilterStatus,
+          'providers': filterStatuses.map((status) => status['provider'] as String).toList(),
+          'details': filterStatuses,
         },
       };
     }

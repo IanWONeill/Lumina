@@ -26,6 +26,7 @@ class TorrentioStreamsService {
     required bool isMovie,
     int? seasonNumber,
     int? episodeNumber,
+    bool useFilters = true,
   }) async {
     final providers = 'yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,'
         'torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex,rutor,rutracker';
@@ -53,6 +54,7 @@ class TorrentioStreamsService {
         'imdbId': imdbId,
         'season': seasonNumber,
         'episode': episodeNumber,
+        'useFilters': useFilters,
       },
     );
 
@@ -78,6 +80,7 @@ class TorrentioStreamsService {
       error: {
         'statusCode': response.statusCode,
         'success': response.statusCode == 200,
+        'useFilters': useFilters,
       },
     );
 

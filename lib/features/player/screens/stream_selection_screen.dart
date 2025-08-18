@@ -441,7 +441,6 @@ class StreamSelectionScreen extends ConsumerWidget {
         action: 'action_view',
         data: streamUrl,
         package: 'com.brouken.player',
-        type: 'video/*',
         arguments: {
           'position': startPosition,
         },
@@ -503,22 +502,21 @@ class StreamSelectionScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.search_off,
+                Icons.error_outline,
                 color: Colors.white,
                 size: 64,
               ),
               const SizedBox(height: 16),
               Text(
-                'No Streams Found',
+                'No streams found',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.white,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Try again later or check another title',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                'Try adjusting your search settings',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.white.withOpacity(0.7),
                 ),
               ),
@@ -528,6 +526,11 @@ class StreamSelectionScreen extends ConsumerWidget {
       );
     }
 
+    // Extract filter status information
+    final filterStatus = streamsData['filterStatus'] as Map<String, dynamic>?;
+    final providers = filterStatus?['providers'] as List<dynamic>? ?? [];
+    final details = filterStatus?['details'] as List<dynamic>? ?? [];
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Padding(
@@ -535,13 +538,208 @@ class StreamSelectionScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Select Stream',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Select Stream',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    // Orionoid badge
+                    if (details.any((detail) => detail['provider'] == 'Orionoid')) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.blue,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.cloud,
+                              color: Colors.blue,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Orionoid',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              details.firstWhere(
+                                (detail) => detail['provider'] == 'Orionoid',
+                                orElse: () => {'usedFilters': false},
+                              )['usedFilters'] == true 
+                                ? Icons.filter_alt 
+                                : Icons.filter_alt_off,
+                              color: details.firstWhere(
+                                (detail) => detail['provider'] == 'Orionoid',
+                                orElse: () => {'usedFilters': false},
+                              )['usedFilters'] == true 
+                                ? Colors.green 
+                                : Colors.orange,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ] else ...[
+                      // Disabled Orionoid badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.cloud,
+                              color: Colors.grey,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Orionoid',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.block,
+                              color: Colors.grey,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    // Torrentio badge
+                    if (details.any((detail) => detail['provider'] == 'Torrentio')) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.blue,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.cloud,
+                              color: Colors.blue,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Torrentio',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              details.firstWhere(
+                                (detail) => detail['provider'] == 'Torrentio',
+                                orElse: () => {'usedFilters': false},
+                              )['usedFilters'] == true 
+                                ? Icons.filter_alt 
+                                : Icons.filter_alt_off,
+                              color: details.firstWhere(
+                                (detail) => detail['provider'] == 'Torrentio',
+                                orElse: () => {'usedFilters': false},
+                              )['usedFilters'] == true 
+                                ? Colors.green 
+                                : Colors.orange,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      // Disabled Torrentio badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.cloud,
+                              color: Colors.grey,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Torrentio',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.block,
+                              color: Colors.grey,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ),
+            if (providers.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Providers: ${providers.join(', ')}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withOpacity(0.6),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 24),
             Expanded(
               child: ListView.builder(
