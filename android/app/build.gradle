@@ -214,9 +214,7 @@ android {
             } else {
                 signingConfig signingConfigs.debug
             }
-            if (project.gradle.startParameter.taskNames.any { it.contains('Release') || it.contains('release') }) {
-                preBuild.dependsOn updateVersionJson
-            }
+            preBuild.dependsOn updateVersionJson
         }
         debug {
             signingConfig signingConfigs.debug

@@ -9,6 +9,7 @@ class StreamProvidersSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final orionoidEnabled = ref.watch(orionoidEnabledProviderProvider);
     final torrentioEnabled = ref.watch(torrentioEnabledProviderProvider);
+    final aioStreamsEnabled = ref.watch(aioStreamsEnabledProviderProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,6 +41,18 @@ class StreamProvidersSettingsSection extends ConsumerWidget {
             value: enabled,
             onChanged: (value) {
               ref.read(torrentioEnabledProviderProvider.notifier).toggle();
+            },
+          ),
+          loading: () => const CircularProgressIndicator(),
+          error: (error, stack) => Text('Error: $error'),
+        ),
+        aioStreamsEnabled.when(
+          data: (enabled) => SwitchListTile(
+            title: const Text('AIOStreams'),
+            subtitle: const Text('Enable/disable AIOStreams as a stream provider'),
+            value: enabled,
+            onChanged: (value) {
+              ref.read(aioStreamsEnabledProviderProvider.notifier).toggle();
             },
           ),
           loading: () => const CircularProgressIndicator(),

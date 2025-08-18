@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:developer' as developer;
 
-class TorrentioStreamsService {
-  static const String _baseUrl = 'https://torrentio.strem.fun';
-  final String? premiumizeApiKey;
+class AioStreamsService {
+  static const String _baseUrl = 'https://aiostreams.elfhosted.com/stremio';
+  final String? aioConfig;
 
-  TorrentioStreamsService({this.premiumizeApiKey});
+  AioStreamsService({this.aioConfig});
 
   void _logLongString(String text, {String type = 'Data'}) {
     final pattern = RegExp('.{1,800}');
@@ -14,7 +14,7 @@ class TorrentioStreamsService {
     pattern.allMatches(text).forEach((match) {
       developer.log(
         '$type (Part $partNumber)',
-        name: 'TorrentioStreams',
+        name: 'AioStreams',
         error: match.group(0),
       );
       partNumber++;
@@ -28,32 +28,30 @@ class TorrentioStreamsService {
     int? episodeNumber,
     bool useFilters = true,
   }) async {
-    final providers = 'yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,'
-        'torrentgalaxy,magnetdl,horriblesubs,nyaasi,tokyotosho,anidex,rutor,rutracker';
-    final debridOptions = 'nodownloadlinks';
-    final premiumizeParam = premiumizeApiKey ?? '';
-    
+    if (aioConfig == null || aioConfig!.isEmpty) {
+      throw Exception('AIOConfig is required');
+    }
+
     final String mediaType = isMovie ? 'movie' : 'series';
-    String endpoint = '$_baseUrl/providers=$providers|debridoptions=$debridOptions|'
-        'premiumize=$premiumizeParam/stream/$mediaType/$imdbId';
+    String endpoint = '$_baseUrl/$aioConfig/stream/$mediaType/$imdbId';
         
     if (!isMovie) {
       if (seasonNumber == null || episodeNumber == null) {
         throw Exception('Season and episode numbers are required for TV shows');
       }
-      endpoint += ':$seasonNumber:$episodeNumber';
+      endpoint += '%3A$seasonNumber%3A$episodeNumber';
     }
     endpoint += '.json';
 
     developer.log(
       'Stream Request URL',
-      name: 'TorrentioStreams',
+      name: 'AioStreams',
       error: endpoint,
     );
     
     developer.log(
       'Stream Request Details',
-      name: 'TorrentioStreams',
+      name: 'AioStreams',
       error: {
         'mediaType': mediaType,
         'imdbId': imdbId,
@@ -64,7 +62,7 @@ class TorrentioStreamsService {
     );
 
     final headers = {
-      "Host": "torrentio.strem.fun",
+      "Host": "aiostreams.elfhosted.com",
       "Connection": "keep-alive",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0",
@@ -81,7 +79,7 @@ class TorrentioStreamsService {
 
     developer.log(
       'Response Status',
-      name: 'TorrentioStreams',
+      name: 'AioStreams',
       error: {
         'statusCode': response.statusCode,
         'success': response.statusCode == 200,
@@ -100,4 +98,4 @@ class TorrentioStreamsService {
       throw Exception('Failed to get streams: ${response.body}');
     }
   }
-} 
+}

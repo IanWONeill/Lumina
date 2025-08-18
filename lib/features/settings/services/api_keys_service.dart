@@ -12,6 +12,7 @@ class ApiKeysService {
   static const _premiumizePrefix = 'premiumize_api_key = ';
   static const _traktPrefix = 'trakt_client_id = ';
   static const _tvdbPrefix = 'tvdb_api_key = ';
+  static const _aioStreamsPrefix = 'AIOConfig = ';
   
   static const _defaultValue = 'your_key_here';
   
@@ -24,6 +25,7 @@ class ApiKeysService {
   static const _optionalKeys = [
     'simkl',
     'trakt',
+    'aio_streams',
   ];
   
   static Future<String> get _filePath async {
@@ -83,6 +85,8 @@ $_simklPrefix your_key_here
 $_traktPrefix your_key_here
 Add this key if you plan to use orionoid.(this key is optional)
 $_orionPrefix your_key_here
+Add this if you plan to use AIOStreams.(this is to be formatted like this: "somedata/a_long_string")
+$_aioStreamsPrefix your_key_here
 ''';
         
         await file.writeAsString(template);
@@ -145,6 +149,8 @@ $_orionPrefix your_key_here
             found = line.substring(_simklPrefix.length).trim() != _defaultValue;
           } else if (key == 'trakt' && line.startsWith(_traktPrefix)) {
             found = line.substring(_traktPrefix.length).trim() != _defaultValue;
+          } else if (key == 'aio_streams' && line.startsWith(_aioStreamsPrefix)) {
+            found = line.substring(_aioStreamsPrefix.length).trim() != _defaultValue;
           }
           if (found) {
             hasOptionalKey.add(key);
@@ -209,6 +215,8 @@ $_orionPrefix your_key_here
           keys['trakt'] = line.substring(_traktPrefix.length).trim();
         } else if (line.startsWith(_tvdbPrefix)) {
           keys['tvdb'] = line.substring(_tvdbPrefix.length).trim();
+        } else if (line.startsWith(_aioStreamsPrefix)) {
+          keys['aio_streams'] = line.substring(_aioStreamsPrefix.length).trim();
         }
       }
 

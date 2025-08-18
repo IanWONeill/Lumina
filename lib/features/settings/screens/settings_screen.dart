@@ -9,6 +9,7 @@ import '../widgets/sync_settings_section.dart';
 import '../widgets/sort_settings_section.dart';
 import '../widgets/stream_providers_settings_section.dart';
 import '../widgets/torrentio_settings_section.dart';
+import '../widgets/aio_streams_settings_section.dart';
 import '../widgets/rss_settings_section.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -62,6 +63,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const OrionSettingsSection(),
                 const SizedBox(height: 40),
                 const TorrentioSettingsSection(),
+                const SizedBox(height: 40),
+                const AioStreamsSettingsSection(),
                 const SizedBox(height: 40),
                 const StreamProvidersSettingsSection(),
                 const SizedBox(height: 40),

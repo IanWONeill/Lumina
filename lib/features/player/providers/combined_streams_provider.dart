@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'dart:developer' as developer;
 import './streams_provider.dart';
 import './torrentio_streams_provider.dart';
+import './aio_streams_provider.dart';
 import '../../settings/providers/stream_providers_settings_provider.dart';
 import '../../sync/services/database_service.dart';
 
@@ -16,6 +17,7 @@ Future<Map<String, dynamic>> combinedStreams(
   try {
     final orionoidEnabled = await ref.watch(orionoidEnabledProviderProvider.future);
     final torrentioEnabled = await ref.watch(torrentioEnabledProviderProvider.future);
+    final aioStreamsEnabled = await ref.watch(aioStreamsEnabledProviderProvider.future);
 
     final futures = <Future<Map<String, dynamic>>>[];
     
@@ -26,12 +28,16 @@ Future<Map<String, dynamic>> combinedStreams(
     if (torrentioEnabled) {
       futures.add(ref.watch(torrentioStreamsProvider(media, isMovie).future));
     }
+    
+    if (aioStreamsEnabled) {
+      futures.add(ref.watch(aioStreamsProvider(media, isMovie).future));
+    }
 
     if (futures.isEmpty) {
       developer.log(
         'No stream providers enabled',
         name: 'CombinedStreamsProvider',
-        error: {'orionoid': orionoidEnabled, 'torrentio': torrentioEnabled},
+        error: {'orionoid': orionoidEnabled, 'torrentio': torrentioEnabled, 'aioStreams': aioStreamsEnabled},
       );
       return {
         'data': {'streams': []},
@@ -48,10 +54,13 @@ Future<Map<String, dynamic>> combinedStreams(
     int totalStreams = 0;
     int orionoidStreams = 0;
     int torrentioStreams = 0;
+    int aioStreamsStreams = 0;
     List<Map<String, dynamic>> filterStatuses = [];
     
+    int resultIndex = 0;
+    
     if (orionoidEnabled) {
-      final orionoidData = results[orionoidEnabled && torrentioEnabled ? 0 : 0];
+      final orionoidData = results[resultIndex++];
       final streams = orionoidData['data']?['streams'] as List<dynamic>?;
       orionoidStreams = streams?.length ?? 0;
       totalStreams += orionoidStreams;
@@ -62,13 +71,24 @@ Future<Map<String, dynamic>> combinedStreams(
     }
     
     if (torrentioEnabled) {
-      final torrentioData = results[orionoidEnabled && torrentioEnabled ? 1 : 0];
+      final torrentioData = results[resultIndex++];
       final streams = torrentioData['streams'] as List<dynamic>?;
       torrentioStreams = streams?.length ?? 0;
       totalStreams += torrentioStreams;
       
       if (torrentioData['filterStatus'] != null) {
         filterStatuses.add(torrentioData['filterStatus'] as Map<String, dynamic>);
+      }
+    }
+    
+    if (aioStreamsEnabled) {
+      final aioStreamsData = results[resultIndex++];
+      final streams = aioStreamsData['streams'] as List<dynamic>?;
+      aioStreamsStreams = streams?.length ?? 0;
+      totalStreams += aioStreamsStreams;
+      
+      if (aioStreamsData['filterStatus'] != null) {
+        filterStatuses.add(aioStreamsData['filterStatus'] as Map<String, dynamic>);
       }
     }
     
@@ -111,11 +131,11 @@ Future<Map<String, dynamic>> combinedStreams(
       );
     }
     
-    if (orionoidEnabled && !torrentioEnabled) {
+    if (orionoidEnabled && !torrentioEnabled && !aioStreamsEnabled) {
       return results[0];
     }
     
-    if (!orionoidEnabled && torrentioEnabled) {
+    if (!orionoidEnabled && torrentioEnabled && !aioStreamsEnabled) {
       final torrentioData = results[0];
       
       final torrentioStreamsList = (torrentioData['streams'] as List<dynamic>)
@@ -213,10 +233,126 @@ Future<Map<String, dynamic>> combinedStreams(
       };
     }
     
-    final orionoidData = results[0];
-    final torrentioData = results[1];
+    if (!orionoidEnabled && !torrentioEnabled && aioStreamsEnabled) {
+      final aioStreamsData = results[0];
+      
+      final aioStreamsList = (aioStreamsData['streams'] as List<dynamic>)
+          .map((stream) {
+            final quality = stream['name'].toString().contains('1080p') 
+                ? 'hd1080' 
+                : stream['name'].toString().contains('720p') 
+                    ? 'hd720' 
+                    : 'sd';
+                    
+            final sizeMatch = RegExp(r'(?:\s|^)(\d+(?:\.\d+)?)\s*(GB|MB)')
+                .firstMatch(stream['title'].toString());
+            
+            final fileSize = sizeMatch != null 
+                ? '${sizeMatch.group(1)} ${sizeMatch.group(2)}'
+                : '0 MB';
+                
+            final sizeInBytes = _convertToBytes(fileSize);
 
-    final torrentioStreamsList = (torrentioData['streams'] as List<dynamic>)
+            developer.log(
+              'Parsed AIOStreams stream size',
+              name: 'CombinedStreamsProvider',
+              error: {
+                'title': stream['title'],
+                'extracted': fileSize,
+                'bytes': sizeInBytes,
+              },
+            );
+
+            return {
+              'id': stream['url'],
+              'links': [stream['url']],
+              'file': {
+                'name': stream['behaviorHints']['filename'],
+                'size': sizeInBytes,
+                'pack': false,
+              },
+              'video': {
+                'quality': quality,
+                'codec': 'h264',
+                '3d': false,
+              },
+              'audio': {
+                'type': 'standard',
+                'channels': 2,
+                'system': 'aac',
+                'codec': 'aac',
+                'languages': ['en'],
+              },
+              'access': {
+                'direct': true,
+                'premiumize': true,
+              },
+                          'stream': {
+              'type': 'torrent',
+              'source': 'aiostreams',
+            },
+            };
+          })
+          .toList();
+
+      return {
+        'data': {
+          'type': isMovie ? 'movie' : 'show',
+          'movie': isMovie ? {
+            'id': {
+              'orion': 'aiostreams_${media.tmdbId}',
+              'tmdb': media.tmdbId.toString(),
+            },
+            'meta': {
+              'title': media.originalTitle,
+            },
+          } : null,
+          'episode': !isMovie ? {
+            'id': {
+              'orion': 'aiostreams_${media.id}',
+            },
+            'number': {
+              'season': await _getSeasonNumber(media.seasonId),
+              'episode': media.episodeNumber,
+            },
+          } : null,
+          'show': !isMovie ? {
+            'meta': {
+              'title': await _getShowTitle(media.showId),
+            },
+          } : null,
+          'streams': aioStreamsList,
+        },
+        'filterStatus': {
+          'overallStatus': aioStreamsData['filterStatus']?['usedFilters'] == true ? 'all_filtered' : 'none_filtered',
+          'providers': [aioStreamsData['filterStatus']?['provider'] ?? 'AIOStreams'],
+          'details': [aioStreamsData['filterStatus'] ?? {'provider': 'AIOStreams', 'usedFilters': false}],
+        },
+      };
+    }
+    
+    // Handle multiple providers - determine which results to use
+    Map<String, dynamic>? orionoidData;
+    Map<String, dynamic>? torrentioData;
+    Map<String, dynamic>? aioStreamsData;
+    
+    if (orionoidEnabled) {
+      orionoidData = results[0];
+    }
+    if (torrentioEnabled) {
+      torrentioData = orionoidEnabled ? results[1] : results[0];
+    }
+    if (aioStreamsEnabled) {
+      if (orionoidEnabled && torrentioEnabled) {
+        aioStreamsData = results[2];
+      } else if (orionoidEnabled || torrentioEnabled) {
+        aioStreamsData = results[1];
+      } else {
+        aioStreamsData = results[0];
+      }
+    }
+
+    final torrentioStreamsList = torrentioData != null ? (torrentioData['streams'] as List<dynamic>)
         .map((stream) {
           final quality = stream['name'].toString().contains('1080p') 
               ? 'hd1080' 
@@ -273,18 +409,79 @@ Future<Map<String, dynamic>> combinedStreams(
             },
           };
         })
-        .toList();
+        .toList() : <Map<String, dynamic>>[];
 
-    if (orionoidData['data']?['streams'] != null) {
+    final aioStreamsList = aioStreamsData != null ? (aioStreamsData['streams'] as List<dynamic>)
+        .map((stream) {
+          final quality = stream['name'].toString().contains('1080p') 
+              ? 'hd1080' 
+              : stream['name'].toString().contains('720p') 
+                  ? 'hd720' 
+                  : 'sd';
+                  
+          final sizeMatch = RegExp(r'(?:\s|^)(\d+(?:\.\d+)?)\s*(GB|MB)')
+              .firstMatch(stream['title'].toString());
+          
+          final fileSize = sizeMatch != null 
+              ? '${sizeMatch.group(1)} ${sizeMatch.group(2)}'
+              : '0 MB';
+              
+          final sizeInBytes = _convertToBytes(fileSize);
+
+          developer.log(
+            'Parsed AIOStreams stream size (combined)',
+            name: 'CombinedStreamsProvider',
+            error: {
+              'title': stream['title'],
+              'extracted': fileSize,
+              'bytes': sizeInBytes,
+            },
+          );
+
+          return {
+            'id': stream['url'],
+            'links': [stream['url']],
+            'file': {
+              'name': stream['behaviorHints']['filename'],
+              'size': sizeInBytes,
+              'pack': false,
+            },
+            'video': {
+              'quality': quality,
+              'codec': 'h264',
+              '3d': false,
+            },
+            'audio': {
+              'type': 'standard',
+              'channels': 2,
+              'system': 'aac',
+              'codec': 'aac',
+              'languages': ['en'],
+            },
+            'access': {
+              'direct': true,
+              'premiumize': true,
+            },
+            'stream': {
+              'type': 'torrent',
+              'source': 'aiostreams',
+            },
+          };
+        })
+        .toList() : <Map<String, dynamic>>[];
+
+    if (orionoidData != null && orionoidData['data']?['streams'] != null) {
       final List<dynamic> existingStreams = orionoidData['data']['streams'];
       existingStreams.addAll(torrentioStreamsList);
+      existingStreams.addAll(aioStreamsList);
       
       developer.log(
         'Combined streams count',
         name: 'CombinedStreamsProvider',
         error: {
-          'orionoid': existingStreams.length - torrentioStreamsList.length,
+          'orionoid': existingStreams.length - torrentioStreamsList.length - aioStreamsList.length,
           'torrentio': torrentioStreamsList.length,
+          'aioStreams': aioStreamsList.length,
           'total': existingStreams.length,
         },
       );
@@ -298,12 +495,23 @@ Future<Map<String, dynamic>> combinedStreams(
         },
       };
     } else {
+      // Combine Torrentio and AIOStreams streams when no Orionoid data
+      final List<dynamic> combinedStreams = <dynamic>[];
+      combinedStreams.addAll(torrentioStreamsList);
+      combinedStreams.addAll(aioStreamsList);
+      
+      // Determine the primary provider for the ID
+      String primaryProvider = 'torrentio';
+      if (torrentioStreamsList.isEmpty && aioStreamsList.isNotEmpty) {
+        primaryProvider = 'aiostreams';
+      }
+      
       return {
         'data': {
           'type': isMovie ? 'movie' : 'show',
           'movie': isMovie ? {
             'id': {
-              'orion': 'torrentio_${media.tmdbId}',
+              'orion': '${primaryProvider}_${media.tmdbId}',
               'tmdb': media.tmdbId.toString(),
             },
             'meta': {
@@ -312,7 +520,7 @@ Future<Map<String, dynamic>> combinedStreams(
           } : null,
           'episode': !isMovie ? {
             'id': {
-              'orion': 'torrentio_${media.id}',
+              'orion': '${primaryProvider}_${media.id}',
             },
             'number': {
               'season': await _getSeasonNumber(media.seasonId),
@@ -324,7 +532,7 @@ Future<Map<String, dynamic>> combinedStreams(
               'title': await _getShowTitle(media.showId),
             },
           } : null,
-          'streams': torrentioStreamsList,
+          'streams': combinedStreams,
         },
         'filterStatus': {
           'overallStatus': overallFilterStatus,

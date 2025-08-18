@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.1 [8/17/2025]
+
+### Added
+- Added fallback for filters being too strict
+
+## 1.1.0 [8/17/2025]
+
+### Added
+- Added AIOstreams as a provider
+- Added stream counts.
+
 ## 1.0.10 [8/17/2025]
 
 ### Changes

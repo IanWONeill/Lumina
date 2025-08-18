@@ -159,6 +159,56 @@ class StreamSelectionScreen extends ConsumerWidget {
     }
   }
 
+  String _buildResultsText(List<StreamInfo> streams) {
+    // Count streams by source, grouping Orionoid sources
+    final Map<String, int> sourceCounts = {};
+    int orionoidCount = 0;
+    
+    for (final stream in streams) {
+      final source = stream.source.toLowerCase();
+      
+      if (source == 'torrentio') {
+        sourceCounts['torrentio'] = (sourceCounts['torrentio'] ?? 0) + 1;
+      } else if (source == 'aiostreams') {
+        sourceCounts['aiostreams'] = (sourceCounts['aiostreams'] ?? 0) + 1;
+      } else {
+        // All other sources are Orionoid
+        orionoidCount++;
+      }
+    }
+    
+    if (orionoidCount > 0) {
+      sourceCounts['orionoid'] = orionoidCount;
+    }
+
+    // Debug logging to see what sources we have
+    developer.log(
+      'Stream source counts (grouped)',
+      name: 'StreamSelectionScreen',
+      error: sourceCounts,
+    );
+
+    // Build the results text
+    final List<String> results = [];
+    
+    // Add counts in a specific order: Torrentio, AIOStreams, Orionoid
+    final orderedSources = ['torrentio', 'aiostreams', 'orionoid'];
+    
+    for (final source in orderedSources) {
+      final count = sourceCounts[source];
+      if (count != null && count > 0) {
+        // Capitalize the source name for display
+        final displayName = source == 'torrentio' ? 'Torrentio' : 
+                           source == 'aiostreams' ? 'AIOStreams' : 
+                           source == 'orionoid' ? 'Orionoid' : source;
+        
+        results.add('$count $displayName Link${count == 1 ? '' : 's'}');
+      }
+    }
+
+    return 'Results: ${results.join(', ')}';
+  }
+
   Future<void> _handleStreamSelection(
     BuildContext context,
     WidgetRef ref,
@@ -378,12 +428,33 @@ class StreamSelectionScreen extends ConsumerWidget {
 
       String? streamUrl;
       
-      if (stream.source == 'Torrentio') {
+      developer.log(
+        'Processing stream for playback',
+        name: 'StreamSelectionScreen',
+        error: {
+          'source': stream.source,
+          'orionId': stream.orionId,
+        },
+      );
+      
+      developer.log(
+        'Stream URL',
+        name: 'StreamSelectionScreen',
+        error: stream.id,
+      );
+      
+      if (stream.source == 'Torrentio' || stream.source == 'aiostreams') {
         streamUrl = stream.id;
         developer.log(
-          'Using direct Torrentio stream URL',
+          'Using direct ${stream.source} stream URL',
           name: 'StreamSelectionScreen',
-          error: {'url': streamUrl},
+          error: {'source': stream.source},
+        );
+        
+        developer.log(
+          'Direct Stream URL',
+          name: 'StreamSelectionScreen',
+          error: streamUrl,
         );
       } else {
         final orionService = ref.read(orionoidServiceProvider);
@@ -407,6 +478,16 @@ class StreamSelectionScreen extends ConsumerWidget {
           }
         }
 
+        developer.log(
+          'Using Orionoid resolution for stream',
+          name: 'StreamSelectionScreen',
+          error: {
+            'source': stream.source,
+            'orionId': stream.orionId,
+            'streamId': stream.id,
+          },
+        );
+        
         streamUrl = await orionService.resolveDebridLink(
           token: token,
           orionId: stream.orionId,
@@ -430,16 +511,22 @@ class StreamSelectionScreen extends ConsumerWidget {
         'Launching player',
         name: 'StreamSelectionScreen',
         error: {
-          'streamUrl': streamUrl,
           'mediaType': isMovie ? 'movie' : 'episode',
           'mediaId': mediaId,
           'startPosition': startPosition,
         },
       );
+      
+      developer.log(
+        'Final Stream URL',
+        name: 'StreamSelectionScreen',
+        error: streamUrl,
+      );
 
       final intent = AndroidIntent(
         action: 'action_view',
         data: streamUrl,
+        type: 'video/*',
         package: 'com.brouken.player',
         arguments: {
           'position': startPosition,
@@ -687,6 +774,7 @@ class StreamSelectionScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                     ] else ...[
                       // Disabled Torrentio badge
                       Container(
@@ -725,6 +813,94 @@ class StreamSelectionScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                    ],
+                    // AIOStreams badge
+                    if (details.any((detail) => detail['provider'] == 'AIOStreams')) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.blue,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.cloud,
+                              color: Colors.blue,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'AIOStreams',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              details.firstWhere(
+                                (detail) => detail['provider'] == 'AIOStreams',
+                                orElse: () => {'usedFilters': false},
+                              )['usedFilters'] == true 
+                                ? Icons.filter_alt 
+                                : Icons.filter_alt_off,
+                              color: details.firstWhere(
+                                (detail) => detail['provider'] == 'AIOStreams',
+                                orElse: () => {'usedFilters': false},
+                              )['usedFilters'] == true 
+                                ? Colors.green 
+                                : Colors.orange,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      // Disabled AIOStreams badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.cloud,
+                              color: Colors.grey,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'AIOStreams',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.block,
+                              color: Colors.grey,
+                              size: 12,
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -733,7 +909,7 @@ class StreamSelectionScreen extends ConsumerWidget {
             if (providers.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Providers: ${providers.join(', ')}',
+                _buildResultsText(streams),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.white.withOpacity(0.6),
                 ),
