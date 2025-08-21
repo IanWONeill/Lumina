@@ -88,6 +88,8 @@ Note: The app currently has hardcoded paths for Android. Modifications are neede
 	add this key if you plan to use orionoid.
         orion_app_key = your_key_here
 
+	add this entry if you plan to use AIOStreams.
+        AIOConfig = your_config/passwordhash_here
 	
 	
     Build your Simkl/Trakt library:
@@ -109,7 +111,6 @@ Note: The app currently has hardcoded paths for Android. Modifications are neede
 
 Contributions are welcome! If you'd like to improve Lumina, here are some ideas:
 
-    Add Trakt integration as an alternative to Simkl.
 
     Add actor searching within the preplay screen(selecting an actor would bring up all other movies/shows they are in.)
 
